@@ -33,6 +33,25 @@ export interface Dentist {
   active: boolean;
 }
 
+export interface SystemUser {
+  id: string;
+  name: string;
+  email: string;
+  profile: string;
+  permissionsCount: number;
+  isCustomized: boolean;
+  photoUrl?: string;
+  permissions?: Record<string, 'none' | 'view' | 'edit'>;
+}
+
+export interface PermissionTemplate {
+  id: string;
+  name: string;
+  description: string;
+  editModulesCount: number;
+  viewModulesCount: number;
+}
+
 export interface Transaction {
   id: string;
   type: 'income' | 'expense';

@@ -11,6 +11,7 @@ import Patients from './components/patients/Patients';
 import Agenda from './components/agenda/Agenda';
 import Financeiro from './components/financeiro/Financeiro';
 import Staff from './components/staff/Staff';
+import AccessProfiles from './components/access/AccessProfiles';
 import Configuracoes from './components/configuracoes/Configuracoes';
 import Login from './components/Login';
 import { useAuth } from './contexts/AuthContext';
@@ -23,9 +24,9 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#050A18] flex flex-col items-center justify-center p-8">
-        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-        <p className="mt-4 text-slate-500 font-medium animate-pulse">Iniciando DenteCloud...</p>
+      <div className="min-h-screen bg-background dark:bg-surface flex flex-col items-center justify-center p-8 transition-colors">
+        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin shadow-lg shadow-primary/20"></div>
+        <p className="mt-4 text-slate-500 dark:text-slate-400 font-medium animate-pulse">Iniciando DenteCloud...</p>
       </div>
     );
   }
@@ -46,6 +47,8 @@ export default function App() {
         return <Financeiro />;
       case 'dentistas':
         return <Staff />;
+      case 'acesso':
+        return <AccessProfiles />;
       case 'configuracoes':
         return <Configuracoes />;
       default:
@@ -59,7 +62,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background transition-colors">
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
       <div className="flex flex-col min-h-screen">
         <Navbar />
@@ -67,8 +70,8 @@ export default function App() {
           <div className="flex-1">
             {renderContent()}
           </div>
-          <footer className="p-8 pt-0 text-center pb-8">
-            <p className="text-[12px] text-text-muted font-medium">
+          <footer className="p-8 pt-0 text-center pb-8 border-t border-transparent dark:border-slate-900/50">
+            <p className="text-[12px] text-text-muted dark:text-slate-500 font-medium font-display uppercase tracking-widest">
               © Developed by Felipe Nascimento
             </p>
           </footer>

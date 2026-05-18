@@ -20,23 +20,53 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return onAuthStateChanged(auth, async (user) => {
       setUser(user);
       if (user) {
-        // Fetch or Initialize user record in RTDB
+        // Fetch matching system user record
+        const systemUsersRef = ref(db, 'system_users');
+        const systemSnapshot = await get(systemUsersRef);
+        const systemUsers = systemSnapshot.val();
+        
+        let systemProfile = null;
+        if (systemUsers) {
+          systemProfile = Object.values(systemUsers).find((u: any) => u.email.toLowerCase() === user.email?.toLowerCase());
+        }
+
         const userRef = ref(db, `users/${user.uid}`);
         const snapshot = await get(userRef);
         
         if (!snapshot.exists()) {
-          // Create default user profile for new users
+          const isAdmin = user.email?.toLowerCase() === 'fee7378@gmail.com';
           const newData = {
-            name: user.displayName || 'Usuário',
+            name: user.displayName || systemProfile?.name || 'Usuário',
             email: user.email,
-            role: 'admin',
+            role: isAdmin ? 'admin' : (systemProfile?.profile?.toLowerCase() || 'user'),
             clinicId: 'demo-clinic',
             createdAt: new Date().toISOString()
           };
           await set(userRef, newData);
           setUserData(newData);
         } else {
-          setUserData(snapshot.val());
+          const currentData = snapshot.val();
+          let needsUpdate = false;
+          const updated = { ...currentData };
+
+          // Update role if system profile exists and differs
+          if (systemProfile && currentData.role !== systemProfile.profile.toLowerCase()) {
+            updated.role = systemProfile.profile.toLowerCase();
+            needsUpdate = true;
+          }
+
+          // Update name if it's default and we have a system profile name
+          if (systemProfile?.name && (currentData.name === 'Usuário' || !currentData.name)) {
+            updated.name = systemProfile.name;
+            needsUpdate = true;
+          }
+
+          if (needsUpdate) {
+            await set(userRef, updated);
+            setUserData(updated);
+          } else {
+            setUserData(currentData);
+          }
         }
       } else {
         setUserData(null);

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { auth, db } from '../services/firebase';
-import { signInWithEmailAndPassword, fetchSignInMethodsForEmail } from 'firebase/auth';
+import { signInWithEmailAndPassword, fetchSignInMethodsForEmail, sendPasswordResetEmail } from 'firebase/auth';
 import { ref, get, set } from 'firebase/database';
-import { Stethoscope, Mail, Lock, ArrowRight, ArrowLeft, AlertCircle } from 'lucide-react';
+import { Stethoscope, Mail, Lock, ArrowRight, ArrowLeft, AlertCircle, KeyRound, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function Login() {
@@ -11,30 +11,40 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   const checkUserExists = async () => {
     if (!email) return;
     setLoading(true);
     setError('');
+    setSuccess('');
 
     try {
-      // Usamos fetchSignInMethodsForEmail para verificar se o e-mail existe no Firebase Auth
+      // Permitir que o e-mail do admin sempre prossiga
+      if (email.toLowerCase() === 'fee7378@gmail.com') {
+        setStep(2);
+        return;
+      }
+
       const methods = await fetchSignInMethodsForEmail(auth, email);
       
       if (methods.length > 0) {
         setStep(2);
       } else {
-        // Se não existir no Auth, verificamos se é o primeiro acesso (banco vazio)
-        const usersRef = ref(db, 'users');
+        // Se não existir no Auth, verificamos se está na lista de system_users
+        const usersRef = ref(db, 'system_users');
         const snapshot = await get(usersRef);
+        const systemUsers = snapshot.val();
         
-        if (!snapshot.exists()) {
-          // Se o banco está vazio, permitimos prosseguir para criar o primeiro usuário
-          // Mas como o usuário quer que "todo login seja salvo lá", vamos apenas avisar.
-          // Para simplificar e seguir a imagem:
+        let found = false;
+        if (systemUsers) {
+          found = Object.values(systemUsers).some((u: any) => u.email.toLowerCase() === email.toLowerCase());
+        }
+
+        if (found || !snapshot.exists()) {
           setStep(2); 
         } else {
-          setError('Usuário não encontrado');
+          setError('Usuário não encontrado no sistema');
         }
       }
     } catch (err: any) {
@@ -44,6 +54,25 @@ export default function Login() {
       } else {
         setError('Erro ao verificar usuário');
       }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!email) {
+      setError('Informe seu e-mail primeiro');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    setSuccess('');
+    try {
+      await sendPasswordResetEmail(auth, email);
+      setSuccess('Link de recuperação enviado para seu e-mail!');
+    } catch (err: any) {
+      console.error(err);
+      setError('Erro ao enviar link de recuperação');
     } finally {
       setLoading(false);
     }
@@ -61,8 +90,7 @@ export default function Login() {
       if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
         setError('Senha incorreta');
       } else if (err.code === 'auth/user-not-found') {
-        setError('Usuário não encontrado');
-        setStep(1);
+        setError('Primeiro acesso detectado! Por favor, clique em "Esqueci minha senha" abaixo para criar sua senha de acesso.');
       } else {
         setError('Falha na autenticação: ' + (err.message || 'Erro desconhecido'));
       }
@@ -72,12 +100,12 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-[#050A18] flex items-center justify-center p-6 font-sans">
+    <div className="min-h-screen bg-background flex items-center justify-center p-6 font-sans transition-colors duration-300">
       <div className="max-w-md w-full">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-[#0B1224] border border-white/5 rounded-[24px] p-8 md:p-12 shadow-2xl relative overflow-hidden"
+          className="bg-surface dark:bg-surface border border-border dark:border-border rounded-[24px] p-8 md:p-12 shadow-2xl relative overflow-hidden"
         >
           {/* Subtle Glow */}
           <div className="absolute -top-24 -right-24 w-48 h-48 bg-primary/10 blur-[80px] rounded-full"></div>
@@ -87,8 +115,8 @@ export default function Login() {
               <div className="w-16 h-16 bg-primary/10 border border-primary/20 rounded-2xl flex items-center justify-center mb-6 shadow-2xl">
                 <Stethoscope className="text-primary w-8 h-8" />
               </div>
-              <h1 className="text-2xl font-bold text-white tracking-tight">DenteCloud</h1>
-              <p className="text-slate-400 text-sm mt-2 font-medium">
+              <h1 className="text-2xl font-bold text-text-main dark:text-white tracking-tight">DenteCloud</h1>
+              <p className="text-text-muted dark:text-slate-400 text-sm mt-2 font-medium">
                 {step === 1 ? 'Informe seu e-mail para continuar' : 'Informe sua senha'}
               </p>
             </div>
@@ -103,7 +131,7 @@ export default function Login() {
                   className="space-y-6"
                 >
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-300 uppercase tracking-widest ml-1">E-mail</label>
+                    <label className="text-xs font-bold text-text-muted dark:text-slate-300 uppercase tracking-widest ml-1">E-mail</label>
                     <div className="relative group">
                       <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-primary transition-colors" />
                       <input 
@@ -112,7 +140,7 @@ export default function Login() {
                         onChange={(e) => setEmail(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && checkUserExists()}
                         placeholder="seu@email.com" 
-                        className="w-full bg-[#161F35] border border-white/5 rounded-xl py-4 pl-12 pr-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all font-medium"
+                        className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-white/5 rounded-xl py-4 pl-12 pr-4 text-text-main dark:text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all font-medium"
                       />
                     </div>
                   </div>
@@ -158,14 +186,14 @@ export default function Login() {
                       setStep(1);
                       setError('');
                     }}
-                    className="flex items-center gap-2 text-slate-400 hover:text-white text-sm transition-colors mb-2"
+                    className="flex items-center gap-2 text-text-muted hover:text-primary text-sm transition-colors mb-2"
                   >
                     <ArrowLeft className="w-4 h-4" />
                     <span>Alterar e-mail ({email})</span>
                   </button>
 
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-300 uppercase tracking-widest ml-1">Senha</label>
+                    <label className="text-xs font-bold text-text-muted dark:text-slate-300 uppercase tracking-widest ml-1">Senha</label>
                     <div className="relative group">
                       <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-primary transition-colors" />
                       <input 
@@ -174,10 +202,32 @@ export default function Login() {
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="••••••••" 
                         autoFocus
-                        className="w-full bg-[#161F35] border border-white/5 rounded-xl py-4 pl-12 pr-4 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all font-medium"
+                        className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-white/5 rounded-xl py-4 pl-12 pr-4 text-text-main dark:text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all font-medium"
                       />
                     </div>
                   </div>
+
+                  <div className="flex justify-end">
+                    <button 
+                      type="button"
+                      onClick={handleResetPassword}
+                      className="text-xs font-bold text-primary hover:underline flex items-center gap-1.5"
+                    >
+                      <KeyRound className="w-3 h-3" />
+                      Esqueci minha senha
+                    </button>
+                  </div>
+
+                  {success && (
+                    <motion.div 
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 flex items-center gap-3 text-emerald-500"
+                    >
+                      <CheckCircle2 className="w-5 h-5 shrink-0" />
+                      <span className="text-sm font-bold">{success}</span>
+                    </motion.div>
+                  )}
 
                   {error && (
                     <motion.div 
@@ -205,8 +255,8 @@ export default function Login() {
               )}
             </AnimatePresence>
 
-            <div className="mt-8 pt-8 border-t border-white/5 text-center">
-              <p className="text-[11px] text-slate-500 flex items-center justify-center gap-1.5 font-medium uppercase tracking-widest">
+            <div className="mt-8 pt-8 border-t border-border dark:border-white/5 text-center">
+              <p className="text-[11px] text-text-muted flex items-center justify-center gap-1.5 font-medium uppercase tracking-widest">
                 Sistema Restrito <span className="opacity-30">•</span> Agendamentos e Consultas
               </p>
             </div>
@@ -214,7 +264,7 @@ export default function Login() {
         </motion.div>
         
         <div className="mt-8 text-center">
-          <p className="text-[12px] text-white/40 font-medium">
+          <p className="text-[12px] text-text-muted font-medium">
             © Developed by Felipe Nascimento
           </p>
         </div>

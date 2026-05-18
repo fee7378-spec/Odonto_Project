@@ -1,6 +1,6 @@
 import { db } from './firebase';
 import { ref, onValue, push, set, update, remove } from 'firebase/database';
-import { Patient, Appointment, Dentist, Transaction } from '../types';
+import { Patient, Appointment, Dentist, Transaction, SystemUser, PermissionTemplate } from '../types';
 
 export const dataService = {
   // Patients
@@ -44,6 +44,13 @@ export const dataService = {
     });
   },
 
+  addDentist: async (dentist: Omit<Dentist, 'id'>) => {
+    const staffRef = ref(db, 'staff');
+    const newRef = push(staffRef);
+    await set(newRef, dentist);
+    return newRef.key;
+  },
+
   // Appointments
   subscribeAppointments: (callback: (appointments: Appointment[]) => void) => {
     const apptsRef = ref(db, 'appointments');
@@ -83,5 +90,70 @@ export const dataService = {
         callback([]);
       }
     });
+  },
+
+  addTransaction: async (transaction: Omit<Transaction, 'id'>) => {
+    const transRef = ref(db, 'transactions');
+    const newRef = push(transRef);
+    await set(newRef, transaction);
+    return newRef.key;
+  },
+
+  // System Users
+  subscribeUsers: (callback: (users: SystemUser[]) => void) => {
+    const usersRef = ref(db, 'system_users');
+    return onValue(usersRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const list = Object.keys(data).map(key => ({
+          ...data[key],
+          id: key
+        })) as SystemUser[];
+        callback(list);
+      } else {
+        callback([]);
+      }
+    });
+  },
+
+  addUser: async (user: Omit<SystemUser, 'id'>) => {
+    const usersRef = ref(db, 'system_users');
+    const newRef = push(usersRef);
+    await set(newRef, user);
+    return newRef.key;
+  },
+
+  deleteUser: async (id: string) => {
+    const userRef = ref(db, `system_users/${id}`);
+    await remove(userRef);
+  },
+
+  // Permission Templates
+  subscribeTemplates: (callback: (templates: PermissionTemplate[]) => void) => {
+    const templatesRef = ref(db, 'permission_templates');
+    return onValue(templatesRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const list = Object.keys(data).map(key => ({
+          ...data[key],
+          id: key
+        })) as PermissionTemplate[];
+        callback(list);
+      } else {
+        callback([]);
+      }
+    });
+  },
+
+  addTemplate: async (template: Omit<PermissionTemplate, 'id'>) => {
+    const templatesRef = ref(db, 'permission_templates');
+    const newRef = push(templatesRef);
+    await set(newRef, template);
+    return newRef.key;
+  },
+
+  deleteTemplate: async (id: string) => {
+    const templateRef = ref(db, `permission_templates/${id}`);
+    await remove(templateRef);
   }
 };

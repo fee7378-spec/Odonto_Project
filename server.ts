@@ -3,8 +3,20 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
+import admin from "firebase-admin";
 
 dotenv.config();
+
+// Firebase Admin Setup
+try {
+  if (!admin.apps.length) {
+    admin.initializeApp({
+      credential: admin.credential.applicationDefault()
+    });
+  }
+} catch (error) {
+  console.error("Firebase Admin Init Error (expected if no credentials):", error);
+}
 
 async function startServer() {
   const app = express();
@@ -23,6 +35,31 @@ async function startServer() {
   });
 
   // API Routes
+  app.post("/api/auth/create-user", async (req, res) => {
+    try {
+      const { email, name } = req.body;
+      
+      if (!admin.apps || admin.apps.length === 0) {
+        return res.status(500).json({ error: "Firebase Admin not initialized" });
+      }
+
+      // Create user with a random password
+      const userRecord = await admin.auth().createUser({
+        email,
+        displayName: name,
+        password: Math.random().toString(36).slice(-12), // Placeholder password
+      });
+
+      res.json({ uid: userRecord.uid, status: 'created' });
+    } catch (error: any) {
+      if (error.code === 'auth/email-already-exists') {
+        return res.json({ status: 'already_exists' });
+      }
+      console.error("Firebase Auth Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.post("/api/ai/suggest-treatment", async (req, res) => {
     try {
       const { patientData } = req.body;

@@ -13,7 +13,7 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [primaryColor, setPrimaryColor] = useState<ThemeColor>(() => {
-    return (localStorage.getItem('theme-color') as ThemeColor) || 'sky';
+    return (localStorage.getItem('theme-color') as ThemeColor) || 'indigo';
   });
   const [isDarkMode, setIsDarkMode] = useState(() => {
     return localStorage.getItem('theme-dark') === 'true';
@@ -24,16 +24,23 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     // Update CSS variable or apply class
     const root = document.documentElement;
     const colors = {
-      sky: '#0284c7',
-      indigo: '#4f46e5',
-      emerald: '#059669',
-      rose: '#e11d48'
+      sky: '#0ea5e9',
+      indigo: '#6366f1',
+      emerald: '#10b981',
+      rose: '#f43f5e'
     };
-    root.style.setProperty('--primary-color', colors[primaryColor]);
+    root.style.setProperty('--color-primary', colors[primaryColor]);
+    root.style.setProperty('--color-primary-hover', colors[primaryColor]); // simplified for now
     
-    // Also update a general primary class if needed, but CSS variables are better
-    root.classList.remove('theme-sky', 'theme-indigo', 'theme-emerald', 'theme-rose');
-    root.classList.add(`theme-${primaryColor}`);
+    // Calculate a light version for the variable
+    const hexToRgba = (hex: string, opacity: number) => {
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+    };
+    root.style.setProperty('--color-primary-light', hexToRgba(colors[primaryColor], 0.1));
+    
   }, [primaryColor]);
 
   useEffect(() => {
