@@ -1,0 +1,58 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", "Helvetica Neue", Arial, ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", sans-serif;
+  
+  --color-primary: #0284C7;
+  --color-primary-light: #F0F9FF;
+  --color-surface: #FFFFFF;
+  --color-background: #F0F4F8;
+  --color-border: #E2E8F0;
+  --color-text-main: #1E293B;
+  --color-text-muted: #64748B;
+  --color-text-very-muted: #94A3B8;
+  --color-text-dark: #0F172A;
+  --color-accent-green: #10B981;
+  --color-accent-red: #EF4444;
+}
+
+@layer base {
+  body {
+    @apply bg-background text-text-main font-sans antialiased;
+  }
+}
+
+.medical-card {
+  @apply bg-white rounded-[12px] border border-border shadow-[0_1px_3px_rgba(0,0,0,0.05)] overflow-hidden;
+}
+
+.sidebar-item {
+  @apply flex items-center gap-3 px-6 py-3 transition-all duration-200 text-text-muted font-medium cursor-pointer border-l-4 border-transparent;
+}
+
+.sidebar-item:hover {
+  @apply bg-slate-50 text-primary;
+}
+
+.sidebar-item.active {
+  @apply bg-primary-light text-primary border-l-primary;
+}
+
+.status-pill {
+  @apply px-2.5 py-1 rounded-full font-semibold text-[11px];
+}
+
+.status-confirmado {
+  @apply bg-[#D1FAE5] text-[#065F46];
+}
+
+.status-atendimento {
+  @apply bg-[#DBEAFE] text-[#1E40AF];
+}
+
+.status-agendado {
+  @apply bg-slate-100 text-slate-600;
+}
+

@@ -1,0 +1,6 @@
+{
+  "name": "DenteCloud",
+  "description": "Sistema completo de gestão odontológica com dashboard analítico, prontuário eletrônico e odontograma interativo.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
