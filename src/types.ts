@@ -1,5 +1,6 @@
 export interface Patient {
   id: string;
+  code: string;
   name: string;
   photoUrl?: string;
   cpf: string;
@@ -16,7 +17,9 @@ export interface Patient {
 export interface Appointment {
   id: string;
   patientId: string;
+  patientName?: string;
   dentistId: string;
+  dentistName?: string;
   date: string; // ISO string
   duration: number; // minutes
   status: 'scheduled' | 'confirmed' | 'ongoing' | 'finished' | 'cancelled';
@@ -31,25 +34,7 @@ export interface Dentist {
   photoUrl?: string;
   commission: number; // percentage
   active: boolean;
-}
-
-export interface SystemUser {
-  id: string;
-  name: string;
-  email: string;
-  profile: string;
-  permissionsCount: number;
-  isCustomized: boolean;
-  photoUrl?: string;
-  permissions?: Record<string, 'none' | 'view' | 'edit'>;
-}
-
-export interface PermissionTemplate {
-  id: string;
-  name: string;
-  description: string;
-  editModulesCount: number;
-  viewModulesCount: number;
+  color?: string;
 }
 
 export interface Transaction {
@@ -66,6 +51,7 @@ export interface Transaction {
 export const mockPatients: Patient[] = [
   {
     id: '1',
+    code: '000001',
     name: 'João Silva',
     photoUrl: 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=150&h=150&fit=crop',
     cpf: '123.456.789-00',
@@ -80,6 +66,7 @@ export const mockPatients: Patient[] = [
   },
   {
     id: '2',
+    code: '000002',
     name: 'Ana Oliveira',
     photoUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&h=150&fit=crop',
     cpf: '234.567.890-11',

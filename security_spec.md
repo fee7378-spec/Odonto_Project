@@ -1,28 +1,27 @@
-# Security Specification - DenteCloud
+# Firestore Security Specification - Fallon Project
 
 ## Data Invariants
-1. A patient must always belong to a clinic (`clinicId`).
-2. An appointment must reference a valid patient and dentist within the same clinic.
-3. Access to any record (patient, appointment, transaction) is strictly limited to users who belong to the same `clinicId`.
-4. Users cannot change their own `role` or `clinicId` after creation (only admins can, but for now we'll keep it simple).
-5. Only `admin` or `finance` roles can see financial transactions.
+1. A patient can have multiple appointments and transactions.
+2. An appointment must always reference a valid patient ID.
+3. A transaction must either be an income or an expense.
+4. Users must be authenticated to read or write any data (for now, assuming a clinic-staff only model).
 
-## The "Dirty Dozen" Payloads
+## The "Dirty Dozen" Payloads (Red Team Test Cases)
+1. **The ID Poison** - Create a patient with a 2MB string as ID.
+2. **Identity Spoof** - Authenticated User A tries to update a patient document they don't "own" (if we had multiple clinics).
+3. **Ghost Field** - Adding `isAdmin: true` to a patient document.
+4. **State Shortcut** - Changing an appointment status directly from `scheduled` to `finished` by bypassing a clinical note required state.
+5. **PII Leak** - Unauthenticated user trying to list all patients.
+6. **Immutable Break** - Trying to change a patient's `code` after creation.
+7. **Negative Money** - Creating a transaction with a negative amount (if not handled).
+8. **Orphaned Appointment** - Creating an appointment for a patient ID that doesn't exist.
+9. **Timestamp Cheat** - Sending a client-side `updatedAt` instead of `serverTimestamp()`.
+10. **Type Mismatch** - Sending a string for the `amount` field in transactions.
+11. **Huge Array** - Sending 10,000 alergies in one patient document to hit document size limits.
+12. **Blanket Query** - Trying to read all documents without a valid clinic association (if multi-tenant).
 
-1. **Identity Theft (Patients)**: Attempting to create a patient with a different `clinicId` than the user's assigned clinic.
-2. **Unauthorized Read**: A user from Clinic A trying to read a patient from Clinic B.
-3. **Role Escalation**: A `receptionist` attempting to update their own role to `admin`.
-4. **PII Leak**: A non-authenticated user attempting to list patients.
-5. **Financial Peeking**: A `receptionist` attempting to list transactions.
-6. **Orphaned Appointment**: Creating an appointment for a patient ID that doesn't exist.
-7. **Malicious Transaction Override**: Updating a 'paid' transaction to 'pending' as a non-finance user.
-8. **Clinic Hijacking**: Attempting to update the `ownerId` of a clinic document.
-9. **Spam Records**: Creating a patient with a name size > 500 characters.
-10. **Future Poisoning**: Setting a `lastVisit` date in the future (relative to request.time).
-11. **Cross-Clinic Appointment**: Creating an appointment in Clinic A for a patient in Clinic B.
-12. **System Field Tampering**: Modifying `createdAt` during an update.
-
-## Test Runner (Draft Logic)
-- Verify `allow read: if isSignedIn() && getUserClinic() == resource.data.clinicId`
-- Verify `allow list: if isSignedIn() && resource.data.clinicId == getUserClinic()`
-- Verify `allow write: if isClinicAdmin() || (isClinicMember() && isValidSchema())`
+## Final Rules Logic
+- Rules are strictly gated by authentication.
+- Field-level validation on all writes.
+- Immortality for critical fields like `code` and `id`.
+- Terminal state locking for finished appointments (cannot change after finished).

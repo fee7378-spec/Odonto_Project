@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from './components/layout/Sidebar';
 import Navbar from './components/layout/Navbar';
 import Dashboard from './components/dashboard/Dashboard';
@@ -11,28 +11,39 @@ import Patients from './components/patients/Patients';
 import Agenda from './components/agenda/Agenda';
 import Financeiro from './components/financeiro/Financeiro';
 import Staff from './components/staff/Staff';
-import AccessProfiles from './components/access/AccessProfiles';
 import Configuracoes from './components/configuracoes/Configuracoes';
-import Login from './components/Login';
-import { useAuth } from './contexts/AuthContext';
-import { signIn } from './services/firebase';
-import { Stethoscope } from 'lucide-react';
+import Login from './components/auth/Login';
+import { ToastProvider, useToast } from './components/ui/Toast';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { auth, db } from './lib/firebase';
+import { doc, getDocFromServer } from 'firebase/firestore';
 
 export default function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
-  const { user, loading } = useAuth();
+  const [init, setInit] = useState(false);
+  const [forceNewAppointment, setForceNewAppointment] = useState(false);
+  
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setIsAuthenticated(!!user);
+      setInit(true);
+    });
+    return () => unsubscribe();
+  }, []);
 
-  if (loading) {
+  const handleLogout = async () => {
+    await signOut(auth);
+  };
+
+  if (!init) return null;
+
+  if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-background dark:bg-surface flex flex-col items-center justify-center p-8 transition-colors">
-        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin shadow-lg shadow-primary/20"></div>
-        <p className="mt-4 text-slate-500 dark:text-slate-400 font-medium animate-pulse">Iniciando DenteCloud...</p>
-      </div>
+      <ToastProvider>
+        <Login onLogin={() => setIsAuthenticated(true)} />
+      </ToastProvider>
     );
-  }
-
-  if (!user) {
-    return <Login />;
   }
 
   const renderContent = () => {
@@ -42,13 +53,11 @@ export default function App() {
       case 'pacientes':
         return <Patients />;
       case 'agenda':
-        return <Agenda />;
+        return <Agenda forceNewAppointment={forceNewAppointment} onAppointmentHandled={() => setForceNewAppointment(false)} />;
       case 'financeiro':
         return <Financeiro />;
       case 'dentistas':
         return <Staff />;
-      case 'acesso':
-        return <AccessProfiles />;
       case 'configuracoes':
         return <Configuracoes />;
       default:
@@ -62,22 +71,33 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-background transition-colors">
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
-      <div className="flex flex-col min-h-screen">
-        <Navbar />
-        <main className="ml-[220px] flex-1 flex flex-col">
-          <div className="flex-1">
+    <ToastProvider>
+      <div className="min-h-screen bg-background">
+        <Sidebar 
+          activeTab={activeTab} 
+          setActiveTab={setActiveTab} 
+          onLogout={handleLogout} 
+          onScheduleAppointment={() => {
+            setActiveTab('agenda');
+            setForceNewAppointment(true);
+          }}
+        />
+        <div className="flex flex-col min-h-screen">
+          <Navbar />
+          <main className="ml-64 flex-1">
             {renderContent()}
-          </div>
-          <footer className="p-8 pt-0 text-center pb-8 border-t border-transparent dark:border-slate-900/50">
-            <p className="text-[12px] text-text-muted dark:text-slate-500 font-medium font-display uppercase tracking-widest">
-              © Developed by Felipe Nascimento
-            </p>
+          </main>
+          <footer className="ml-64 pb-2 pt-12">
+            <div className="px-8">
+              <div className="w-full border-t border-slate-200 mb-2"></div>
+              <p className="text-[11px] text-slate-400 font-medium tracking-wide text-center">
+                © Developed by Felipe Nascimento
+              </p>
+            </div>
           </footer>
-        </main>
+        </div>
       </div>
-    </div>
+    </ToastProvider>
   );
 }
 

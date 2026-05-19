@@ -1,14 +1,18 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // 1. Default deny catch-all
+    // 1. Master Deny-All Gate
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // --- Helpers ---
+    // 2. Global Helpers
     function isSignedIn() {
       return request.auth != null;
+    }
+
+    function isStaff() {
+      return isSignedIn(); // For now any authenticated user is staff
     }
 
     function isValidId(id) {
@@ -23,89 +27,62 @@ service cloud.firestore {
       return resource.data;
     }
 
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-    }
-
-    function isMemberOf(clinicId) {
-      return isSignedIn() && getUserData().clinicId == clinicId;
-    }
-
-    function hasRole(role) {
-      return isSignedIn() && getUserData().role == role;
-    }
-
-    function isAdminOf(clinicId) {
-      return isMemberOf(clinicId) && (getUserData().role == 'admin' || get(/databases/$(database)/documents/clinics/$(clinicId)).data.ownerId == request.auth.uid);
-    }
-
-    // --- Validation Helpers ---
-    function isValidUser(data) {
-      return data.keys().hasAll(['name', 'email', 'role', 'clinicId']) &&
-             data.keys().size() == 4 &&
-             data.name is string && data.name.size() <= 100 &&
-             data.email == request.auth.token.email &&
-             data.role in ['admin', 'dentist', 'receptionist', 'finance'] &&
-             isValidId(data.clinicId);
-    }
-
+    // 3. Validation Helpers
     function isValidPatient(data) {
-      return data.keys().hasAll(['name', 'clinicId']) &&
-             data.name is string && data.name.size() <= 100 &&
-             isValidId(data.clinicId) &&
-             (data.get('email', '') is string) &&
-             (data.get('cpf', '') is string);
+      return data.keys().hasAll(['name', 'cpf', 'phone', 'email', 'status']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 200 &&
+             data.cpf is string && data.cpf.size() <= 20 &&
+             data.email is string && data.email.size() <= 100 &&
+             (data.get('code', '') is string) &&
+             data.status in ['active', 'inactive'];
     }
 
     function isValidAppointment(data) {
-      return data.keys().hasAll(['patientId', 'dentistId', 'date', 'clinicId', 'status']) &&
-             isValidId(data.patientId) &&
-             isValidId(data.dentistId) &&
-             isValidId(data.clinicId) &&
+      return data.keys().hasAll(['patientId', 'date', 'status', 'treatmentType']) &&
+             data.patientId is string &&
+             data.date is string &&
              data.status in ['scheduled', 'confirmed', 'ongoing', 'finished', 'cancelled'];
     }
 
-    // --- Rules ---
-    match /users/{userId} {
-      allow get: if isSignedIn() && (request.auth.uid == userId || isMemberOf(getUserData().clinicId));
-      allow create: if isSignedIn() && request.auth.uid == userId && isValidUser(incoming());
-      allow update: if isSignedIn() && request.auth.uid == userId && 
-                    incoming().diff(existing()).affectedKeys().hasOnly(['name']) &&
-                    isValidUser(incoming());
+    function isValidTransaction(data) {
+      return data.keys().hasAll(['type', 'category', 'amount', 'date', 'status', 'description']) &&
+             data.type in ['income', 'expense'] &&
+             data.amount is number && data.amount >= 0 &&
+             data.status in ['paid', 'pending'];
     }
 
-    match /clinics/{clinicId} {
-      allow get: if isSignedIn() && isMemberOf(clinicId);
-      allow create: if isSignedIn() && incoming().ownerId == request.auth.uid;
-      allow update: if isSignedIn() && isAdminOf(clinicId) && 
-                    incoming().ownerId == existing().ownerId;
-    }
-
+    // 4. Collection Matches
     match /patients/{patientId} {
-      allow get: if isSignedIn() && isMemberOf(existing().clinicId);
-      allow list: if isSignedIn() && resource.data.clinicId == getUserData().clinicId;
-      allow create: if isSignedIn() && isMemberOf(incoming().clinicId) && isValidPatient(incoming());
-      allow update: if isSignedIn() && isMemberOf(existing().clinicId) && isValidPatient(incoming());
+      allow read: if isStaff();
+      allow create: if isStaff() && isValidPatient(incoming());
+      allow update: if isStaff() && isValidPatient(incoming()) && (
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'name', 'photoUrl', 'cpf', 'phone', 'email', 'status', 'alergies', 
+          'medications', 'odontogramState', 'history', 'lastVisit', 'nextVisit'
+        ])
+      );
+      allow delete: if isStaff();
     }
 
     match /appointments/{appointmentId} {
-      allow get: if isSignedIn() && isMemberOf(existing().clinicId);
-      allow list: if isSignedIn() && resource.data.clinicId == getUserData().clinicId;
-      allow create: if isSignedIn() && isMemberOf(incoming().clinicId) && isValidAppointment(incoming());
-      allow update: if isSignedIn() && isMemberOf(existing().clinicId) && isValidAppointment(incoming());
-    }
-
-    match /dentists/{dentistId} {
-      allow get: if isSignedIn() && isMemberOf(existing().clinicId);
-      allow list: if isSignedIn() && resource.data.clinicId == getUserData().clinicId;
-      allow create: if isSignedIn() && isAdminOf(incoming().clinicId);
-      allow update: if isSignedIn() && isAdminOf(existing().clinicId);
+      allow read: if isStaff();
+      allow create: if isStaff() && isValidAppointment(incoming());
+      allow update: if isStaff() && isValidAppointment(incoming()) && (
+        // Action: Update status or time
+        incoming().diff(existing()).affectedKeys().hasAny(['status', 'date', 'notes']) &&
+        // Prevent editing if finished or cancelled (terminal states)
+        !(existing().status in ['finished', 'cancelled'])
+      );
+      allow delete: if isStaff();
     }
 
     match /transactions/{transactionId} {
-      allow read: if isSignedIn() && isMemberOf(resource.data.clinicId) && (hasRole('admin') || hasRole('finance'));
-      allow create: if isSignedIn() && isMemberOf(incoming().clinicId) && (hasRole('admin') || hasRole('finance'));
-      allow update: if isSignedIn() && isAdminOf(existing().clinicId);
+      allow read: if isStaff();
+      allow create: if isStaff() && isValidTransaction(incoming());
+      allow update: if isStaff() && isValidTransaction(incoming()) && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'description', 'amount'])
+      );
+      allow delete: if isStaff();
     }
   }
 }

@@ -1,0 +1,31 @@
+{
+  "rules": {
+    ".read": "auth != null",
+    ".write": "auth != null",
+    "patients": {
+      "$patientId": {
+        ".validate": "newData.hasChildren(['name', 'email', 'status'])",
+        "name": { ".validate": "newData.isString() && newData.val().length > 0" },
+        "email": { ".validate": "newData.isString() && newData.val().contains('@')" },
+        "status": { ".validate": "newData.val() == 'active' || newData.val() == 'inactive'" }
+      }
+    },
+    "appointments": {
+      "$appointmentId": {
+        ".validate": "newData.hasChildren(['patientId', 'date', 'status', 'treatmentType'])"
+      }
+    },
+    "dentists": {
+      "$dentistId": {
+        ".validate": "newData.hasChildren(['name', 'specialty', 'commission'])"
+      }
+    },
+    "transactions": {
+      "$transactionId": {
+        ".validate": "newData.hasChildren(['type', 'amount', 'status'])",
+        "amount": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "type": { ".validate": "newData.val() == 'income' || newData.val() == 'expense'" }
+      }
+    }
+  }
+}

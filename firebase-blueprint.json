@@ -1,124 +1,88 @@
 {
   "entities": {
-    "user": {
-      "title": "User",
-      "description": "System user with profile and role",
-      "type": "object",
-      "properties": {
-        "name": { "type": "string" },
-        "email": { "type": "string" },
-        "role": { "type": "string", "enum": ["admin", "dentist", "receptionist", "finance"] },
-        "clinicId": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["name", "email", "role", "clinicId"]
-    },
-    "patient": {
+    "Patient": {
       "title": "Patient",
-      "description": "Patient clinic record",
+      "description": "Information about a patient",
       "type": "object",
       "properties": {
+        "id": { "type": "string" },
+        "code": { "type": "string" },
         "name": { "type": "string" },
         "photoUrl": { "type": "string" },
         "cpf": { "type": "string" },
         "phone": { "type": "string" },
         "email": { "type": "string" },
-        "lastVisit": { "type": "string", "format": "date-time" },
-        "nextVisit": { "type": "string", "format": "date-time" },
-        "status": { "type": "string", "enum": ["active", "inactive"] },
-        "alergies": { "type": "array", "items": { "type": "string" } },
-        "medications": { "type": "array", "items": { "type": "string" } },
-        "history": { "type": "array", "items": { "type": "string" } },
-        "clinicId": { "type": "string" },
-        "updatedAt": { "type": "string", "format": "date-time" }
+        "lastVisit": { "type": "string" },
+        "nextVisit": { "type": "string" },
+        "status": { "type": "string" },
+        "alergies": { "type": "array" },
+        "medications": { "type": "array" },
+        "history": { "type": "array" }
       },
-      "required": ["name", "clinicId"]
+      "required": ["id", "name", "cpf", "phone", "email", "status"]
     },
-    "appointment": {
+    "Appointment": {
       "title": "Appointment",
       "description": "Dental appointment",
       "type": "object",
       "properties": {
+        "id": { "type": "string" },
         "patientId": { "type": "string" },
         "dentistId": { "type": "string" },
-        "date": { "type": "string", "format": "date-time" },
+        "date": { "type": "string" },
         "duration": { "type": "number" },
-        "status": { "type": "string", "enum": ["scheduled", "confirmed", "ongoing", "finished", "cancelled"] },
+        "status": { "type": "string" },
         "treatmentType": { "type": "string" },
-        "notes": { "type": "string" },
-        "clinicId": { "type": "string" }
+        "notes": { "type": "string" }
       },
-      "required": ["patientId", "dentistId", "date", "clinicId"]
+      "required": ["id", "patientId", "dentistId", "date", "duration", "status", "treatmentType"]
     },
-    "dentist": {
+    "Dentist": {
       "title": "Dentist",
-      "description": "Dentist professional profile",
+      "description": "Dentist information",
       "type": "object",
       "properties": {
+        "id": { "type": "string" },
         "name": { "type": "string" },
         "specialty": { "type": "string" },
         "photoUrl": { "type": "string" },
         "commission": { "type": "number" },
-        "active": { "type": "boolean" },
-        "clinicId": { "type": "string" }
+        "active": { "type": "boolean" }
       },
-      "required": ["name", "clinicId"]
+      "required": ["id", "name", "specialty", "commission", "active"]
     },
-    "transaction": {
+    "Transaction": {
       "title": "Transaction",
       "description": "Financial record",
       "type": "object",
       "properties": {
-        "type": { "type": "string", "enum": ["income", "expense"] },
+        "id": { "type": "string" },
+        "type": { "type": "string" },
         "category": { "type": "string" },
         "amount": { "type": "number" },
-        "date": { "type": "string", "format": "date-time" },
-        "status": { "type": "string", "enum": ["paid", "pending"] },
+        "date": { "type": "string" },
+        "status": { "type": "string" },
         "patientId": { "type": "string" },
-        "description": { "type": "string" },
-        "clinicId": { "type": "string" }
+        "description": { "type": "string" }
       },
-      "required": ["type", "amount", "date", "clinicId"]
-    },
-    "clinic": {
-      "title": "Clinic",
-      "description": "Clinic general settings",
-      "type": "object",
-      "properties": {
-        "name": { "type": "string" },
-        "logoUrl": { "type": "string" },
-        "cnpj": { "type": "string" },
-        "technicalResponsible": { "type": "string" },
-        "technicalCro": { "type": "string" },
-        "address": { "type": "string" },
-        "ownerId": { "type": "string" }
-      },
-      "required": ["name", "ownerId"]
+      "required": ["id", "type", "category", "amount", "date", "status", "description"]
     }
   },
   "firestore": {
-    "users/{userId}": {
-      "schema": "user",
-      "description": "User profiles"
-    },
-    "clinics/{clinicId}": {
-      "schema": "clinic",
-      "description": "Clinic global settings"
-    },
-    "patients/{patientId}": {
-      "schema": "patient",
+    "/patients/{patientId}": {
+      "schema": "Patient",
       "description": "Patient records"
     },
-    "appointments/{appointmentId}": {
-      "schema": "appointment",
-      "description": "Dental appointments"
+    "/appointments/{appointmentId}": {
+      "schema": "Appointment",
+      "description": "Appointment schedules"
     },
-    "dentists/{dentistId}": {
-      "schema": "dentist",
-      "description": "Dentists"
+    "/dentists/{dentistId}": {
+      "schema": "Dentist",
+      "description": "Dentist profiles"
     },
-    "transactions/{transactionId}": {
-      "schema": "transaction",
+    "/transactions/{transactionId}": {
+      "schema": "Transaction",
       "description": "Financial transactions"
     }
   }
