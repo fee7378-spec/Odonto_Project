@@ -1,10 +1,15 @@
 import React, { useState } from 'react';
-import { Settings as SettingsIcon, Bell, Shield, Smartphone, Globe, Palette, Users } from 'lucide-react';
+import { Settings as SettingsIcon, Bell, Shield, Smartphone, Globe, Palette, Users, UserCog, FileText } from 'lucide-react';
 import { useToast } from '../ui/Toast';
+import PerfisAcesso from '../admin/PerfisAcesso';
+import { usePermissions } from '../../hooks/usePermissions';
 
 export default function Configs() {
   const { addToast } = useToast();
+  const { hasPermission } = usePermissions();
   const [activeConfig, setActiveConfig] = useState('Geral');
+
+  const canManageAccess = hasPermission('perfisAcesso');
 
   const renderContent = () => {
     switch (activeConfig) {
@@ -31,36 +36,15 @@ export default function Configs() {
             </div>
           </div>
         );
+      case 'Perfis de Acesso':
+        return canManageAccess ? <PerfisAcesso /> : <div className="p-8 text-center text-slate-400">Você não tem permissão para acessar esta área.</div>;
       case 'Aparência':
         return <div className="medical-card p-6 text-slate-500">Configurações de Aparência (Em breve)</div>;
       case 'Segurança':
         return <div className="medical-card p-6 text-slate-500">Configurações de Segurança (Em breve)</div>;
-      case 'Perfis de Acesso':
-        return <AccessProfiles />;
       default:
         return null;
     }
-  };
-
-  const AccessProfiles = () => {
-    const [subTab, setSubTab] = useState('Usuários');
-    return (
-      <div className="medical-card p-6">
-        <h3 className="font-bold text-slate-900 text-lg mb-6">Perfis de Acesso</h3>
-        <div className="flex gap-4 mb-6 border-b border-slate-100">
-          {['Usuários', 'Templates'].map(tab => (
-            <button 
-              key={tab}
-              onClick={() => setSubTab(tab)}
-              className={`text-sm font-bold pb-2 ${subTab === tab ? 'text-gold-600 border-b-2 border-gold-600' : 'text-slate-500 hover:text-gold-600'}`}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-        <div className="text-sm text-slate-500">Gestão de {subTab} (Em breve)</div>
-      </div>
-    );
   };
 
   return (
@@ -71,17 +55,27 @@ export default function Configs() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        <div className="lg:col-span-1 space-y-2">
+        <div className="lg:col-span-1 space-y-1">
+          <p className="px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 mt-4">Sistema</p>
           <ConfigNav active={activeConfig === 'Geral'} icon={Globe} label="Geral" onClick={() => setActiveConfig('Geral')} />
           <ConfigNav active={activeConfig === 'Aparência'} icon={Palette} label="Aparência" onClick={() => setActiveConfig('Aparência')} />
           <ConfigNav active={activeConfig === 'Segurança'} icon={Shield} label="Segurança" onClick={() => setActiveConfig('Segurança')} />
-          <ConfigNav active={activeConfig === 'Perfis de Acesso'} icon={Users} label="Perfis de Acesso" onClick={() => setActiveConfig('Perfis de Acesso')} />
+          
+          {canManageAccess && (
+            <>
+              <p className="px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 mt-6">Configurações Avançadas</p>
+              <ConfigNav active={activeConfig === 'Perfis de Acesso'} icon={Shield} label="Perfis de Acesso" onClick={() => setActiveConfig('Perfis de Acesso')} />
+            </>
+          )}
         </div>
 
         <div className="lg:col-span-3 space-y-8">
-          {renderContent()}
+          <div className="animate-in fade-in slide-in-from-right-4 duration-500">
+            {renderContent()}
+          </div>
+          
           {activeConfig === 'Geral' && (
-            <div className="medical-card p-6">
+            <div className="medical-card p-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
               <h3 className="font-bold text-slate-900 text-lg mb-4">Logo e Identidade</h3>
               <p className="text-sm text-slate-400 mb-6 font-medium">Esta logo será exibida nos orçamentos e recibos emitidos pelo sistema.</p>
               <div className="flex items-center gap-8">

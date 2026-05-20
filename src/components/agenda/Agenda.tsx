@@ -5,11 +5,16 @@ import { Clock, User, ChevronLeft, ChevronRight, Plus, MapPin, Phone, Search, In
 import { format, addDays, subDays, isSameDay, isSameWeek, isSameMonth, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addWeeks, subWeeks, addMonths, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useToast } from '../ui/Toast';
+import Select from '../ui/Select';
 import { globalPatientsList } from '../patients/Patients';
 import { subscribeToCollection, createDoc, updateDoc, deleteDoc, appointmentsCollection, dentistsCollection } from '../../services/firebaseService';
 import { Appointment, Dentist } from '../../types';
+import { usePermissions } from '../../hooks/usePermissions';
 
 export default function Agenda({ forceNewAppointment, onAppointmentHandled }: { forceNewAppointment?: boolean, onAppointmentHandled?: () => void }) {
+  const { hasPermission } = usePermissions();
+  const canEdit = hasPermission('agenda', 'edit');
+  
   const [date, setDate] = useState(new Date());
   const [isBooking, setIsBooking] = useState(false);
   
@@ -178,16 +183,17 @@ export default function Agenda({ forceNewAppointment, onAppointmentHandled }: { 
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold">{editingAppointment ? 'Editar Consulta' : 'Nova Consulta'}</h2>
             <div className="flex items-center gap-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Status</label>
-              <select 
-                className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-gold-500/20 transition-all hover:bg-white hover:border-slate-300 shadow-sm appearance-none min-w-[170px]"
-                value={appointmentStatus}
-                onChange={(e) => setAppointmentStatus(e.target.value)}
-              >
-                <option value="ongoing">Aguardando.</option>
-                <option value="finished">Consulta realizada.</option>
-                <option value="cancelled">Consulta cancelada.</option>
-              </select>
+              <div className="min-w-[200px]">
+                <Select 
+                  label="Status"
+                  value={appointmentStatus}
+                  onChange={(e) => setAppointmentStatus(e.target.value)}
+                >
+                  <option value="ongoing">Aguardando.</option>
+                  <option value="finished">Consulta realizada.</option>
+                  <option value="cancelled">Consulta cancelada.</option>
+                </Select>
+              </div>
             </div>
           </div>
           
@@ -274,54 +280,49 @@ export default function Agenda({ forceNewAppointment, onAppointmentHandled }: { 
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1 mb-1.5 block">Tipo de Atendimento</label>
-                <select 
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-gold-500/20 transition-all hover:bg-white hover:border-slate-300 shadow-sm appearance-none"
-                  value={selectedCategory}
-                  onChange={(e) => {
-                    setSelectedCategory(e.target.value);
-                    setSelectedProcedure(''); // Reset procedure when category changes
-                  }}
-                >
-                  <option value="">Selecione a categoria</option>
-                  {Object.keys(treatmentCategories).map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
-              </div>
+              <Select 
+                label="Tipo de Atendimento"
+                value={selectedCategory}
+                onChange={(e) => {
+                  setSelectedCategory(e.target.value);
+                  setSelectedProcedure(''); 
+                }}
+              >
+                <option value="">Selecione a categoria</option>
+                {Object.keys(treatmentCategories).map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </Select>
 
               {selectedCategory && (
                 <div className="animate-in slide-in-from-top-2 duration-300">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1 mb-1.5 block">Procedimento</label>
-                  <select 
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-gold-500/20 transition-all hover:bg-white hover:border-slate-300 shadow-sm appearance-none"
+                  <Select 
+                    label="Procedimento"
                     value={selectedProcedure}
                     onChange={(e) => setSelectedProcedure(e.target.value)}
                   >
                     <option value="">Selecione o procedimento</option>
-                    {treatmentCategories[selectedCategory as keyof typeof treatmentCategories].map(proc => (
-                      <option key={proc} value={proc}>{proc}</option>
-                    ))}
-                  </select>
+                    {selectedCategory && (treatmentCategories as any)[selectedCategory] && (
+                      (treatmentCategories as any)[selectedCategory].map((proc: string) => (
+                        <option key={proc} value={proc}>{proc}</option>
+                      ))
+                    )}
+                  </Select>
                 </div>
               )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1 mb-1.5 block">Doutor Responsável</label>
-                <select 
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-gold-500/20 transition-all hover:bg-white hover:border-slate-300 shadow-sm appearance-none"
-                  value={selectedDentistId}
-                  onChange={(e) => setSelectedDentistId(e.target.value)}
-                >
-                  <option value="">Selecione o profissional</option>
-                  {staffList.map(dentist => (
-                    <option key={dentist.id} value={dentist.id}>{dentist.name}</option>
-                  ))}
-                </select>
-              </div>
+              <Select 
+                label="Doutor Responsável"
+                value={selectedDentistId}
+                onChange={(e) => setSelectedDentistId(e.target.value)}
+              >
+                <option value="">Selecione o profissional</option>
+                {staffList.map(dentist => (
+                  <option key={dentist.id} value={dentist.id}>{dentist.name}</option>
+                ))}
+              </Select>
             </div>
 
             <div>
@@ -525,7 +526,13 @@ export default function Agenda({ forceNewAppointment, onAppointmentHandled }: { 
                     )}
                   </div>
                   <div 
-                    onClick={() => setEditingAppointment(apt)}
+                    onClick={() => {
+                      if (canEdit) {
+                        setEditingAppointment(apt);
+                      } else {
+                        addToast('Apenas visualização permitida.', 'info');
+                      }
+                    }}
                     className={`flex-1 border-l-4 rounded-r-2xl p-4 transition-all hover:translate-x-1 cursor-pointer shadow-sm hover:shadow-md ${getStatusColor(apt.status)}`}
                   >
                     <div className="flex justify-between items-start">

@@ -1,7 +1,10 @@
 import React from 'react';
 import { Search, Bell, UserCircle } from 'lucide-react';
+import { usePermissions } from '../../hooks/usePermissions';
 
 export default function Navbar() {
+  const { user, profile } = usePermissions();
+  
   return (
     <header className="h-16 bg-white border-bottom border-slate-200 flex items-center justify-between px-8 sticky top-0 z-30 ml-64">
       <div className="flex-1 max-w-xl">
@@ -25,11 +28,17 @@ export default function Navbar() {
         
         <div className="flex items-center gap-3 px-3 py-1.5 rounded-full hover:bg-slate-50 transition-colors cursor-pointer group">
           <div className="text-right">
-            <p className="text-sm font-semibold text-slate-900 group-hover:text-gold-600 transition-colors">Fallon Odonto Care</p>
-            <p className="text-[11px] text-slate-500 font-medium">Administrador</p>
+            <p className="text-sm font-bold text-slate-900 group-hover:text-gold-600 transition-colors">
+              {user?.name || 'Fallon Odonto Care'}
+            </p>
+            <p className="text-[11px] text-slate-500 font-bold tracking-wider">
+              {profile?.name 
+                ? profile.name.charAt(0).toUpperCase() + profile.name.slice(1).toLowerCase() 
+                : 'Administrador'}
+            </p>
           </div>
-          <div className="w-9 h-9 rounded-full bg-gold-100 flex items-center justify-center text-gold-600">
-            <UserCircle className="w-6 h-6" />
+          <div className="w-10 h-10 rounded-full flex items-center justify-center p-1 bg-gradient-to-br from-gold-100 to-white border border-gold-200 shadow-sm shrink-0">
+            <img src="https://generation-sessions.s3.amazonaws.com/15f6974db37bcefa9eb0434bf77f0a6d/img-7ed6c9fc-a7aa-425f-bc14-067dfdce9b2b.png" alt="Logo" className="w-full h-full object-contain" />
           </div>
         </div>
       </div>

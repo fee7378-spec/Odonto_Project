@@ -48,6 +48,9 @@ export const patientsCollection = 'patients';
 export const appointmentsCollection = 'appointments';
 export const dentistsCollection = 'dentists';
 export const transactionsCollection = 'transactions';
+export const profilesCollection = 'profiles';
+export const usersCollection = 'system_users';
+export const templatesCollection = 'templates';
 
 export async function getAllDocs<T>(path: string) {
   try {
@@ -126,4 +129,21 @@ export function subscribeToCollection<T>(path: string, callback: (data: T[]) => 
   });
 
   return () => off(dbRef, 'value', unsubscribe);
+}
+
+export async function checkUserByEmail(email: string) {
+  try {
+    const dbRef = ref(db, usersCollection);
+    const snapshot = await get(dbRef);
+    if (snapshot.exists()) {
+      const data = snapshot.val();
+      const userId = Object.keys(data).find(key => data[key].email.toLowerCase() === email.toLowerCase());
+      if (userId) {
+        return { id: userId, ...data[userId] };
+      }
+    }
+    return null;
+  } catch (error) {
+    handleRTDBError(error, OperationType.GET, usersCollection);
+  }
 }

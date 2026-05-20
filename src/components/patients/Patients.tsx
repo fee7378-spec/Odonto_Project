@@ -7,6 +7,7 @@ import { subscribeToCollection, createDoc, updateDoc, patientsCollection, appoin
 import { Appointment } from '../../types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { usePermissions } from '../../hooks/usePermissions';
 
 export let globalPatientsList: Patient[] = [];
 
@@ -26,6 +27,9 @@ const formatCPF = (val: string) => {
 };
 
 export default function Patients() {
+  const { hasPermission } = usePermissions();
+  const canEdit = hasPermission('pacientes', 'edit');
+  
   const [patientsList, setPatientsList] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
@@ -295,33 +299,35 @@ export default function Patients() {
             ← Voltar para lista
           </button>
           <div className="flex gap-3">
-            <button 
-              onClick={() => {
-                const hList = selectedPatient.history.map((h: string) => {
-                  const parts = h.split(' - ');
-                  return { date: parts.length > 1 ? parts[0] : 'Hoje', text: parts.length > 1 ? parts.slice(1).join(' - ') : parts[0] };
-                });
-                
-                setNewPatient({
-                  name: selectedPatient.name, 
-                  phone: selectedPatient.phone, 
-                  email: selectedPatient.email, 
-                  cpf: selectedPatient.cpf || '', 
-                  alergies: selectedPatient.alergies.join(', '), 
-                  medications: (selectedPatient.medications || []).join(', '), 
-                  photoUrl: selectedPatient.photoUrl || '', 
-                  historyInput: '', 
-                  historyDateInput: new Date().toISOString().split('T')[0], 
-                  historyList: hList, 
-                  odontogramState: selectedPatient.odontogramState || {}
-                });
-                setEditingPatientId(selectedPatient.id);
-                setIsRegistering(true);
-              }}
-              className="bg-white border border-slate-200 px-4 py-2 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors"
-            >
-              Editar Prontuário
-            </button>
+            {canEdit && (
+              <button 
+                onClick={() => {
+                  const hList = selectedPatient.history.map((h: string) => {
+                    const parts = h.split(' - ');
+                    return { date: parts.length > 1 ? parts[0] : 'Hoje', text: parts.length > 1 ? parts.slice(1).join(' - ') : parts[0] };
+                  });
+                  
+                  setNewPatient({
+                    name: selectedPatient.name, 
+                    phone: selectedPatient.phone, 
+                    email: selectedPatient.email, 
+                    cpf: selectedPatient.cpf || '', 
+                    alergies: (selectedPatient.alergies || []).join(', '), 
+                    medications: (selectedPatient.medications || []).join(', '), 
+                    photoUrl: selectedPatient.photoUrl || '', 
+                    historyInput: '', 
+                    historyDateInput: new Date().toISOString().split('T')[0], 
+                    historyList: hList, 
+                    odontogramState: selectedPatient.odontogramState || {}
+                  });
+                  setEditingPatientId(selectedPatient.id);
+                  setIsRegistering(true);
+                }}
+                className="bg-white border border-slate-200 px-4 py-2 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                Editar Prontuário
+              </button>
+            )}
             <button 
               onClick={() => addToast('Iniciando novo fluxo de agendamento...', 'success')}
               className="bg-gold-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-gold-700 transition-colors shadow-lg shadow-gold-100"
@@ -367,8 +373,8 @@ export default function Patients() {
                 <div>
                   <label className="text-[10px] uppercase font-bold text-slate-400">Alergias</label>
                   <div className="flex flex-wrap gap-2 mt-1">
-                    {selectedPatient.alergies.length > 0 ? (
-                      selectedPatient.alergies.map((a: string) => (
+                    {(selectedPatient.alergies || []).length > 0 ? (
+                      (selectedPatient.alergies || []).map((a: string) => (
                         <span key={a} className="bg-red-50 text-red-600 text-[10px] font-bold px-2 py-0.5 rounded uppercase">
                           {a}
                         </span>
@@ -380,7 +386,7 @@ export default function Patients() {
                 </div>
                 <div>
                   <label className="text-[10px] uppercase font-bold text-slate-400">Medicamentos</label>
-                  <p className="text-sm text-slate-700">{selectedPatient.medications.join(', ') || 'Sem uso regular'}</p>
+                  <p className="text-sm text-slate-700">{(selectedPatient.medications || []).join(', ') || 'Sem uso regular'}</p>
                 </div>
               </div>
             </div>
@@ -462,13 +468,15 @@ export default function Patients() {
           <h1 className="text-3xl font-bold font-display text-slate-900">Pacientes</h1>
           <p className="text-slate-500 mt-1">Gerencie a base de dados de pacientes da sua clínica.</p>
         </div>
-        <button 
-          onClick={() => setIsRegistering(true)}
-          className="bg-gold-600 hover:bg-gold-700 text-white px-6 py-3 rounded-xl flex items-center justify-center gap-2 font-bold transition-all shadow-lg shadow-gold-100"
-        >
-          <Plus className="w-5 h-5" />
-          <span>Cadastrar Novo</span>
-        </button>
+        {canEdit && (
+          <button 
+            onClick={() => setIsRegistering(true)}
+            className="bg-gold-600 hover:bg-gold-700 text-white px-6 py-3 rounded-xl flex items-center justify-center gap-2 font-bold transition-all shadow-lg shadow-gold-100"
+          >
+            <Plus className="w-5 h-5" />
+            <span>Cadastrar Novo</span>
+          </button>
+        )}
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4">

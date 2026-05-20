@@ -18,6 +18,7 @@ import {
   BarChart,
   Bar
 } from 'recharts';
+import Select from '../ui/Select';
 
 const data = [
   { name: 'Jan', value: 4000 },
@@ -78,10 +79,16 @@ export default function Dashboard({ setActiveTab }: { setActiveTab?: (tab: strin
         <div className="lg:col-span-2 medical-card p-6">
           <div className="flex items-center justify-between mb-8">
             <h3 className="font-bold text-slate-900 text-lg">Performance Financeira</h3>
-            <select className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-medium focus:outline-none">
-              <option>Últimos 6 meses</option>
-              <option>Último ano</option>
-            </select>
+            <div className="w-[180px]">
+              <Select 
+                className="py-1.5 px-3 text-xs"
+                value="6months"
+                onChange={() => {}}
+              >
+                <option value="6months">Últimos 6 meses</option>
+                <option value="1year">Último ano</option>
+              </Select>
+            </div>
           </div>
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">

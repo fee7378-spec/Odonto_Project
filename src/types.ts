@@ -1,3 +1,29 @@
+export type PermissionLevel = 'none' | 'view' | 'edit';
+
+export interface AccessProfile {
+  id: string;
+  name: string;
+  description?: string;
+  permissions: Record<string, PermissionLevel>;
+}
+
+export interface SystemUser {
+  id: string;
+  name: string;
+  email: string;
+  profileId: string;
+  status: 'pending' | 'active';
+  createdAt: string;
+  customPermissions?: Record<string, PermissionLevel>;
+}
+
+export interface DocumentTemplate {
+  id: string;
+  name: string;
+  content: string;
+  category: string;
+}
+
 export interface Patient {
   id: string;
   code: string;
@@ -32,7 +58,6 @@ export interface Dentist {
   name: string;
   specialty: string;
   photoUrl?: string;
-  commission: number; // percentage
   active: boolean;
   color?: string;
 }
@@ -108,7 +133,6 @@ export const mockDentists: Dentist[] = [
     name: 'Dr. Roberto Santos',
     specialty: 'Implantodontia',
     photoUrl: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=150&h=150&fit=crop',
-    commission: 40,
     active: true,
   }
 ];

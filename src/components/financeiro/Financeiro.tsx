@@ -25,9 +25,13 @@ import {
 import { useToast } from '../ui/Toast';
 import { subscribeToCollection, transactionsCollection } from '../../services/firebaseService';
 import { Transaction } from '../../types';
+import { usePermissions } from '../../hooks/usePermissions';
 
 export default function Financeiro() {
   const { addToast } = useToast();
+  const { hasPermission } = usePermissions();
+  const canEdit = hasPermission('financeiro', 'edit');
+  
   const [transactionsList, setTransactionsList] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -80,12 +84,14 @@ export default function Financeiro() {
             <Download className="w-4 h-4" />
             Exportar
           </button>
-          <button 
-            onClick={() => addToast('Abrindo formulário de nova transação', 'info')}
-            className="bg-gold-600 hover:bg-gold-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-lg shadow-gold-100"
-          >
-            Nova Transação
-          </button>
+          {canEdit && (
+            <button 
+              onClick={() => addToast('Abrindo formulário de nova transação', 'info')}
+              className="bg-gold-600 hover:bg-gold-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-lg shadow-gold-100"
+            >
+              Nova Transação
+            </button>
+          )}
         </div>
       </div>
 
