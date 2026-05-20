@@ -77,12 +77,12 @@ function Tooth({ number, pos, state, onClick }: { key?: number, number: number, 
         ${isTreated && 'border-emerald-200 bg-emerald-50/30'}
       `}>
         {/* Simple 5-surface tooth representation */}
-        <div className="absolute inset-2 border border-slate-100 rounded-sm"></div>
+        <div className="absolute inset-2 border border-slate-100 rounded-sm dark:hidden"></div>
         {/* Surface indicators */}
-        <div className={`absolute top-0 left-0 right-0 h-2 border-b border-slate-100 ${isCaries && 'bg-red-400/20'} ${isTreated && 'bg-emerald-400/20'}`}></div>
-        <div className={`absolute bottom-0 left-0 right-0 h-2 border-t border-slate-100`}></div>
-        <div className={`absolute left-0 top-2 bottom-2 w-2 border-r border-slate-100`}></div>
-        <div className={`absolute right-0 top-2 bottom-2 w-2 border-l border-slate-100`}></div>
+        <div className={`absolute top-0 left-0 right-0 h-2 border-b border-slate-100 dark:hidden ${isCaries && 'bg-red-400/20'} ${isTreated && 'bg-emerald-400/20'}`}></div>
+        <div className={`absolute bottom-0 left-0 right-0 h-2 border-t border-slate-100 dark:hidden`}></div>
+        <div className={`absolute left-0 top-2 bottom-2 w-2 border-r border-slate-100 dark:hidden`}></div>
+        <div className={`absolute right-0 top-2 bottom-2 w-2 border-l border-slate-100 dark:hidden`}></div>
         
         {/* Interaction markers */}
         {isCaries && <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-red-400"></div>}

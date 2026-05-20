@@ -4,6 +4,7 @@ import { useToast } from '../ui/Toast';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
 import { checkUserByEmail, updateDoc, usersCollection } from '../../services/firebaseService';
+import Logo from '../ui/Logo';
 
 export default function Login({ onLogin }: { onLogin: () => void }) {
   const [step, setStep] = useState(1);
@@ -53,12 +54,12 @@ export default function Login({ onLogin }: { onLogin: () => void }) {
   const handleFinalAction = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (userData.status === 'pending') {
+    if (userData.status === 'pending' || userData.id === 'master_admin') {
       if (password.length < 6) {
         addToast('A senha deve ter pelo menos 6 caracteres.', 'error');
         return;
       }
-      if (password !== confirmPassword) {
+      if (userData.status === 'pending' && password !== confirmPassword) {
         addToast('As senhas não coincidem.', 'error');
         return;
       }
@@ -79,7 +80,23 @@ export default function Login({ onLogin }: { onLogin: () => void }) {
         addToast('Senha configurada com sucesso! Bem-vindo.', 'success');
       } else {
         // Regular login
-        await signInWithEmailAndPassword(auth, email, password);
+        try {
+          await signInWithEmailAndPassword(auth, email, password);
+        } catch (signInError: any) {
+          if (userData.id === 'master_admin' && (signInError.code === 'auth/invalid-credential' || signInError.code === 'auth/user-not-found' || signInError.code === 'auth/wrong-password')) {
+            // Master admin might not exist yet, attempt to create
+            try {
+              await createUserWithEmailAndPassword(auth, email, password);
+            } catch (createError: any) {
+              if (createError.code === 'auth/email-already-in-use') {
+                throw signInError; // It was indeed a wrong password
+              }
+              throw createError;
+            }
+          } else {
+            throw signInError;
+          }
+        }
         
         // If this was the master admin bootstrap, ensure the DB entries exist
         if (userData.id === 'master_admin') {
@@ -149,9 +166,8 @@ export default function Login({ onLogin }: { onLogin: () => void }) {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md animate-in fade-in slide-in-from-bottom-8 duration-700">
-        <div className="flex flex-col items-center justify-center mb-6 gap-4">
-          <img src="https://generation-sessions.s3.amazonaws.com/15f6974db37bcefa9eb0434bf77f0a6d/img-7ed6c9fc-a7aa-425f-bc14-067dfdce9b2b.png" alt="Logo Icon" className="h-20 object-contain" />
-          <img src="https://generation-sessions.s3.amazonaws.com/15f6974db37bcefa9eb0434bf77f0a6d/img-d0df3fbf-3a1b-419b-a0d0-fb44e5900508.png" alt="Fallon Odonto Care" className="h-12 object-contain" />
+        <div className="flex items-center justify-center mb-8">
+          <Logo className="h-[68px]" />
         </div>
         <p className="mt-2 text-center text-sm text-slate-500">
           Painel de Acesso do Colaborador

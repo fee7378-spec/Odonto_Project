@@ -127,9 +127,9 @@ export default function Agenda({ forceNewAppointment, onAppointmentHandled }: { 
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'finished': return 'border-emerald-500 bg-emerald-50 text-emerald-700';
+      case 'finished': return 'border-emerald-500 bg-emerald-50 text-emerald-600';
       case 'ongoing': return 'border-gold-500 bg-gold-50 text-gold-700';
-      case 'cancelled': return 'border-rose-300 bg-rose-100 text-rose-800';
+      case 'cancelled': return 'border-rose-500 bg-rose-50 text-rose-600';
       default: return 'border-gold-400 bg-gold-50 text-gold-700';
     }
   };
@@ -520,7 +520,7 @@ export default function Agenda({ forceNewAppointment, onAppointmentHandled }: { 
                       {format(new Date(apt.date), 'HH:mm')}
                     </span>
                     {view !== 'day' && (
-                      <span className="text-[10px] font-bold text-slate-300 uppercase">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase">
                         {format(new Date(apt.date), 'dd/MM')}
                       </span>
                     )}
@@ -584,26 +584,36 @@ export default function Agenda({ forceNewAppointment, onAppointmentHandled }: { 
         }
         .react-calendar__navigation button {
           font-weight: bold !important;
-          color: #0F172A !important;
+          color: var(--slate-900) !important;
+        }
+        .react-calendar__tile {
+          color: var(--slate-900) !important;
+        }
+        .react-calendar__tile:disabled {
+          color: var(--slate-400) !important;
+        }
+        .react-calendar__month-view__days__day--neighboringMonth {
+          color: var(--slate-400) !important; 
         }
         .react-calendar__tile--now {
-          background: #FAF8F2 !important;
-          color: #BEA44B !important;
+          background: var(--gold-50) !important;
+          color: var(--gold-700) !important;
           border-radius: 8px;
         }
         .has-appointment {
-          background: #F3EDDB !important;
-          color: #89722F !important;
+          background: var(--gold-100) !important;
+          color: var(--gold-800) !important;
           border-radius: 8px;
           font-weight: bold;
         }
         .react-calendar__tile--active {
-          background: #BEA44B !important;
-          color: white !important;
+          background: var(--gold-500) !important;
+          color: var(--color-white-override) !important;
           border-radius: 8px;
           filter: drop-shadow(0 4px 6px rgba(190, 164, 75, 0.2));
         }
         .react-calendar__tile:hover {
+          background: var(--slate-100) !important;
           border-radius: 8px;
         }
         .react-calendar__month-view__weekdays__weekday {
@@ -611,7 +621,7 @@ export default function Agenda({ forceNewAppointment, onAppointmentHandled }: { 
           font-size: 10px;
           font-weight: 800;
           text-transform: uppercase;
-          color: #94A3B8;
+          color: var(--slate-500);
         }
       `}</style>
     </div>

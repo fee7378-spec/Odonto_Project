@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
-import { Settings as SettingsIcon, Bell, Shield, Smartphone, Globe, Palette, Users, UserCog, FileText } from 'lucide-react';
+import { Settings as SettingsIcon, Bell, Shield, Smartphone, Globe, Palette, Users, UserCog, FileText, Moon, Sun } from 'lucide-react';
 import { useToast } from '../ui/Toast';
 import PerfisAcesso from '../admin/PerfisAcesso';
 import { usePermissions } from '../../hooks/usePermissions';
+import { useTheme } from '../../contexts/ThemeContext';
 
 export default function Configs() {
   const { addToast } = useToast();
   const { hasPermission } = usePermissions();
+  const { theme, toggleTheme } = useTheme();
   const [activeConfig, setActiveConfig] = useState('Geral');
 
   const canManageAccess = hasPermission('perfisAcesso');
@@ -39,7 +41,35 @@ export default function Configs() {
       case 'Perfis de Acesso':
         return canManageAccess ? <PerfisAcesso /> : <div className="p-8 text-center text-slate-400">Você não tem permissão para acessar esta área.</div>;
       case 'Aparência':
-        return <div className="medical-card p-6 text-slate-500">Configurações de Aparência (Em breve)</div>;
+        return (
+          <div className="medical-card p-6 text-slate-800">
+            <h3 className="font-bold text-slate-900 text-lg mb-6">Aparência do Sistema</h3>
+            <div className="flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-xl">
+              <div>
+                <p className="font-bold text-sm text-slate-900">Tema do Sistema</p>
+                <p className="text-xs text-slate-500 font-medium mt-1">Alterne entre o visual claro e escuro</p>
+              </div>
+              
+              <button
+                onClick={toggleTheme}
+                className="relative inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 shadow-sm rounded-full hover:bg-slate-50 transition-colors"
+                aria-label="Toggle Dark Mode"
+              >
+                {theme === 'dark' ? (
+                  <>
+                    <Moon className="w-4 h-4 text-slate-700" />
+                    <span className="text-sm font-bold text-slate-700">Tema Escuro</span>
+                  </>
+                ) : (
+                  <>
+                    <Sun className="w-4 h-4 text-gold-600" />
+                    <span className="text-sm font-bold text-slate-700">Tema Claro</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        );
       case 'Segurança':
         return <div className="medical-card p-6 text-slate-500">Configurações de Segurança (Em breve)</div>;
       default:

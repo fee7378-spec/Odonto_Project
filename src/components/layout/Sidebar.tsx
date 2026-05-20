@@ -16,6 +16,8 @@ import {
 import { cn } from '../../lib/utils';
 import { usePermissions } from '../../hooks/usePermissions';
 
+import Logo from '../ui/Logo';
+
 interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
@@ -43,9 +45,8 @@ export default function Sidebar({ activeTab, setActiveTab, onLogout, onScheduleA
 
   return (
     <div className="w-64 h-screen bg-white border-r border-slate-200 flex flex-col fixed left-0 top-0">
-      <div className="p-6 flex flex-col items-center justify-center border-b border-slate-100 mb-2 gap-2">
-        <img src="https://generation-sessions.s3.amazonaws.com/15f6974db37bcefa9eb0434bf77f0a6d/img-7ed6c9fc-a7aa-425f-bc14-067dfdce9b2b.png" alt="Icon" className="h-10 object-contain" />
-        <img src="https://generation-sessions.s3.amazonaws.com/15f6974db37bcefa9eb0434bf77f0a6d/img-d0df3fbf-3a1b-419b-a0d0-fb44e5900508.png" alt="Fallon Odonto Care" className="h-6 object-contain" />
+      <div className="p-6 flex items-center justify-center border-b border-slate-100 mb-2">
+        <Logo className="h-[54px] text-[0.85em]" />
       </div>
 
       {hasPermission('agenda', 'edit') && (

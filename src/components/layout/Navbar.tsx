@@ -37,8 +37,8 @@ export default function Navbar() {
                 : 'Administrador'}
             </p>
           </div>
-          <div className="w-10 h-10 rounded-full flex items-center justify-center p-1 bg-gradient-to-br from-gold-100 to-white border border-gold-200 shadow-sm shrink-0">
-            <img src="https://generation-sessions.s3.amazonaws.com/15f6974db37bcefa9eb0434bf77f0a6d/img-7ed6c9fc-a7aa-425f-bc14-067dfdce9b2b.png" alt="Logo" className="w-full h-full object-contain" />
+          <div className="w-10 h-10 rounded-full flex items-center justify-center p-1 bg-gradient-to-br from-gold-100 to-white border border-gold-200 shadow-sm shrink-0 text-gold-600">
+            <UserCircle className="w-6 h-6" />
           </div>
         </div>
       </div>

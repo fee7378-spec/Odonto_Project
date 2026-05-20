@@ -34,8 +34,8 @@ export default function Dashboard({ setActiveTab }: { setActiveTab?: (tab: strin
     <div className="p-8 space-y-8 animate-in fade-in duration-700">
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="text-3xl font-bold font-display text-slate-900">Bom dia, Dr. Roberto</h1>
-          <p className="text-slate-500 mt-1">Aqui está o resumo da sua clínica hoje.</p>
+          <h1 className="text-3xl font-bold font-display text-slate-900">Dashboard</h1>
+          <p className="text-slate-500 mt-1">Visão geral do desempenho e atividades da clínica.</p>
         </div>
         <div className="text-sm text-slate-400 font-medium">
           {new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date()).replace(/^\w/, c => c.toUpperCase())}
