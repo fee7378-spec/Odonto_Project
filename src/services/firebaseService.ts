@@ -1,16 +1,3 @@
-import { 
-  ref, 
-  get, 
-  set, 
-  push, 
-  update, 
-  remove, 
-  onValue,
-  query,
-  off
-} from 'firebase/database';
-import { db, auth } from '../lib/firebase';
-
 export enum OperationType {
   CREATE = 'create',
   UPDATE = 'update',
@@ -20,29 +7,43 @@ export enum OperationType {
   WRITE = 'write',
 }
 
-interface RTDBErrorInfo {
-  error: string;
-  operationType: OperationType;
-  path: string | null;
-  authInfo: {
-    userId?: string | null;
-    email?: string | null;
-  }
-}
+const getStorage = () => JSON.parse(localStorage.getItem('clinicAppDB') || '{}');
+const setStorage = (data: any) => {
+  localStorage.setItem('clinicAppDB', JSON.stringify(data));
+  window.dispatchEvent(new Event('db-change'));
+};
 
-function handleRTDBError(error: unknown, operationType: OperationType, path: string | null) {
-  const errInfo: RTDBErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
-    authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-    },
-    operationType,
-    path
+const getPathData = (data: any, path: string) => {
+  if (!path) return data;
+  const parts = path.split('/').filter(Boolean);
+  let current = data;
+  for (const part of parts) {
+    if (current[part] === undefined) return undefined;
+    current = current[part];
   }
-  console.error('Realtime Database Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
-}
+  return current;
+};
+
+const setPathData = (data: any, path: string, value: any) => {
+  if (!path) return value;
+  const parts = path.split('/').filter(Boolean);
+  let current = data;
+  for (let i = 0; i < parts.length - 1; i++) {
+    const part = parts[i];
+    if (current[part] === undefined) {
+      current[part] = {};
+    }
+    current = current[part];
+  }
+  if (value === undefined) {
+    delete current[parts[parts.length - 1]];
+  } else {
+    current[parts[parts.length - 1]] = value;
+  }
+  return data;
+};
+
+const generateId = () => Math.random().toString(36).substring(2, 15);
 
 export const patientsCollection = 'patients';
 export const appointmentsCollection = 'appointments';
@@ -51,99 +52,75 @@ export const transactionsCollection = 'transactions';
 export const profilesCollection = 'profiles';
 export const usersCollection = 'system_users';
 export const templatesCollection = 'templates';
+export const proceduresCollection = 'procedures';
 
 export async function getAllDocs<T>(path: string) {
-  try {
-    const dbRef = ref(db, path);
-    const snapshot = await get(dbRef);
-    if (snapshot.exists()) {
-      const data = snapshot.val();
-      return Object.keys(data).map(key => ({ id: key, ...data[key] } as T));
-    }
-    return [];
-  } catch (error) {
-    handleRTDBError(error, OperationType.GET, path);
+  const db = getStorage();
+  const data = getPathData(db, path);
+  if (data && typeof data === 'object') {
+    return Object.keys(data).map(key => ({ id: key, ...data[key] } as T));
   }
+  return [];
 }
 
 export async function getOneDoc<T>(path: string, id: string) {
-  try {
-    const dbRef = ref(db, `${path}/${id}`);
-    const snapshot = await get(dbRef);
-    if (snapshot.exists()) {
-      return { id: snapshot.key, ...snapshot.val() } as T;
-    }
-    return null;
-  } catch (error) {
-    handleRTDBError(error, OperationType.GET, `${path}/${id}`);
+  const db = getStorage();
+  const data = getPathData(db, `${path}/${id}`);
+  if (data) {
+    return { id, ...data } as T;
   }
+  return null;
 }
 
 export async function createDoc<T>(path: string, data: any, id?: string) {
-  try {
-    if (id) {
-      const dbRef = ref(db, `${path}/${id}`);
-      await set(dbRef, data);
-      return { id, ...data } as T;
-    } else {
-      const dbRef = ref(db, path);
-      const newDocRef = push(dbRef);
-      await set(newDocRef, data);
-      return { id: newDocRef.key, ...data } as T;
-    }
-  } catch (error) {
-    handleRTDBError(error, OperationType.CREATE, path);
-  }
+  const db = getStorage();
+  const newId = id || generateId();
+  setPathData(db, `${path}/${newId}`, data);
+  setStorage(db);
+  return { id: newId, ...data } as T;
 }
 
 export async function updateDoc(path: string, id: string, data: any) {
-  try {
-    const dbRef = ref(db, `${path}/${id}`);
-    await update(dbRef, data);
-  } catch (error) {
-    handleRTDBError(error, OperationType.UPDATE, `${path}/${id}`);
-  }
+  const db = getStorage();
+  const current = getPathData(db, `${path}/${id}`) || {};
+  setPathData(db, `${path}/${id}`, { ...current, ...data });
+  setStorage(db);
 }
 
 export async function deleteDoc(path: string, id: string) {
-  try {
-    const dbRef = ref(db, `${path}/${id}`);
-    await remove(dbRef);
-  } catch (error) {
-    handleRTDBError(error, OperationType.DELETE, `${path}/${id}`);
-  }
+  const db = getStorage();
+  setPathData(db, `${path}/${id}`, undefined);
+  setStorage(db);
 }
 
 export function subscribeToCollection<T>(path: string, callback: (data: T[]) => void) {
-  const dbRef = ref(db, path);
-  const unsubscribe = onValue(dbRef, (snapshot) => {
-    const data = snapshot.val();
-    if (data) {
+  const checkData = () => {
+    const db = getStorage();
+    const data = getPathData(db, path);
+    if (data && typeof data === 'object') {
       const result = Object.keys(data).map(key => ({ id: key, ...data[key] } as T));
       callback(result);
     } else {
       callback([]);
     }
-  }, (error) => {
-    handleRTDBError(error, OperationType.LIST, path);
-  });
-
-  return () => off(dbRef, 'value', unsubscribe);
+  };
+  
+  checkData();
+  
+  window.addEventListener('db-change', checkData);
+  return () => {
+    window.removeEventListener('db-change', checkData);
+  };
 }
 
 export async function checkUserByEmail(email: string) {
-  try {
-    const dbRef = ref(db, usersCollection);
-    const snapshot = await get(dbRef);
-    if (snapshot.exists()) {
-      const data = snapshot.val();
-      const userId = Object.keys(data).find(key => data[key].email.toLowerCase() === email.toLowerCase());
-      if (userId) {
-        return { id: userId, ...data[userId] };
-      }
+  const db = getStorage();
+  const data = getPathData(db, usersCollection);
+  if (data && typeof data === 'object') {
+    const userId = Object.keys(data).find(key => data[key].email.toLowerCase() === email.toLowerCase());
+    if (userId) {
+      return { id: userId, ...data[userId] };
     }
-    return null;
-  } catch (error) {
-    handleRTDBError(error, OperationType.GET, usersCollection);
   }
+  return null;
 }

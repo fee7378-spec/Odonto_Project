@@ -11,7 +11,8 @@ import {
   Plus,
   Shield,
   UserCog,
-  FileText
+  FileText,
+  ClipboardList
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -32,12 +33,14 @@ export default function Sidebar({ activeTab, setActiveTab, onLogout, onScheduleA
   const mainMenu = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'agenda', label: 'Agenda', icon: Calendar },
+    { id: 'consultas', label: 'Consultas', icon: ClipboardList },
     { id: 'pacientes', label: 'Pacientes', icon: Users },
     { id: 'financeiro', label: 'Financeiro', icon: CircleDollarSign },
     { id: 'dentistas', label: 'Equipe', icon: Stethoscope },
   ].filter(item => hasPermission(item.id, 'view'));
 
   const adminMenu = [
+    { id: 'miscellaneous', label: 'Miscelâneos', icon: FileText },
     { id: 'configuracoes', label: 'Configurações', icon: Settings },
   ].filter(item => hasPermission(item.id, 'view'));
 

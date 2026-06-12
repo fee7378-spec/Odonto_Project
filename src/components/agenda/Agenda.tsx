@@ -1,35 +1,43 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
-import { Clock, User, ChevronLeft, ChevronRight, Plus, MapPin, Phone, Search, Info, CheckCircle2, XCircle, AlertCircle, RotateCcw, FilterX } from 'lucide-react';
+import { Clock, User, ChevronLeft, ChevronRight, Plus, MapPin, Phone, Search, Info, CheckCircle2, XCircle, AlertCircle, RotateCcw, FilterX, X } from 'lucide-react';
 import { format, addDays, subDays, isSameDay, isSameWeek, isSameMonth, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addWeeks, subWeeks, addMonths, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useToast } from '../ui/Toast';
+
+const WhatsappIcon = ({ className = "w-5 h-5", ...props }: React.SVGProps<SVGSVGElement>) => (
+  <svg 
+    viewBox="0 0 24 24" 
+    fill="currentColor" 
+    className={className} 
+    {...props}
+  >
+    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
+  </svg>
+);
 import Select from '../ui/Select';
+import CurrencyInput from '../ui/CurrencyInput';
 import { globalPatientsList } from '../patients/Patients';
-import { subscribeToCollection, createDoc, updateDoc, deleteDoc, appointmentsCollection, dentistsCollection } from '../../services/firebaseService';
-import { Appointment, Dentist } from '../../types';
+import { subscribeToCollection, createDoc, updateDoc, deleteDoc, appointmentsCollection, dentistsCollection, proceduresCollection } from '../../services/firebaseService';
+import { Appointment, Dentist, Procedure } from '../../types';
 import { usePermissions } from '../../hooks/usePermissions';
 
-export default function Agenda({ forceNewAppointment, onAppointmentHandled }: { forceNewAppointment?: boolean, onAppointmentHandled?: () => void }) {
+export default function Agenda({ forceNewAppointment, preselectedPatient, onAppointmentHandled }: { forceNewAppointment?: boolean, preselectedPatient?: any, onAppointmentHandled?: () => void }) {
   const { hasPermission } = usePermissions();
   const canEdit = hasPermission('agenda', 'edit');
   
   const [date, setDate] = useState(new Date());
+  const [activeStartDate, setActiveStartDate] = useState<Date>(new Date());
   const [isBooking, setIsBooking] = useState(false);
   
-  useEffect(() => {
-    if (forceNewAppointment) {
-      setIsBooking(true);
-      if (onAppointmentHandled) onAppointmentHandled();
-    }
-  }, [forceNewAppointment]);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [patientSearch, setPatientSearch] = useState('');
   const [selectedPatientItem, setSelectedPatientItem] = useState<any>(null);
   const [showDropdown, setShowDropdown] = useState(false);
   const [appointmentsList, setAppointmentsList] = useState<Appointment[]>([]);
   const [staffList, setStaffList] = useState<Dentist[]>([]);
+  const [dbProcedures, setDbProcedures] = useState<Procedure[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'day' | 'week' | 'month'>('day');
   const [patients, setPatients] = useState<any[]>([]);
@@ -38,13 +46,43 @@ export default function Agenda({ forceNewAppointment, onAppointmentHandled }: { 
   const [selectedProcedure, setSelectedProcedure] = useState('');
   const [selectedDentistId, setSelectedDentistId] = useState('');
   const [dentistFilters, setDentistFilters] = useState<string[]>([]);
+  const [appointmentDate, setAppointmentDate] = useState('');
+  const [appointmentStatus, setAppointmentStatus] = useState('ongoing');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  
+  // Custom states added for Financeiro/Payment tracking
+  const [payments, setPayments] = useState<{ method: 'PIX'|'Crédito'|'Débito'|'Outros'|''; customMethod: string; amount: number | '' }[]>([
+    { method: '', customMethod: '', amount: '' }
+  ]);
+  const [procedureValue, setProcedureValue] = useState<number | ''>('');
 
-  const treatmentCategories = {
-    'Ortodontia': ['Manutenção de aparelho', 'Instalação de aparelho', 'Remoção', 'Moldagem'],
-    'Clínica Geral': ['Limpeza', 'Restauração', 'Avaliação', 'Extração'],
-    'Endodontia': ['Canal', 'Retratamento', 'Curativo'],
-    'Implantodontia': ['Instalação de Implante', 'Prótese sobre Implante', 'Avaliação de Implante']
-  };
+  const [selectedProcedures, setSelectedProcedures] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (forceNewAppointment) {
+      setIsBooking(true);
+      if (preselectedPatient) {
+        setSelectedPatientItem(preselectedPatient);
+        setPatientSearch(preselectedPatient.name);
+      }
+      if (onAppointmentHandled) onAppointmentHandled();
+    }
+  }, [forceNewAppointment, preselectedPatient, onAppointmentHandled]);
+
+  useEffect(() => {
+    setActiveStartDate(date);
+  }, [date]);
+
+  const treatmentCategories = useMemo(() => {
+    const cats: Record<string, Procedure[]> = {};
+
+    dbProcedures.forEach(p => {
+      if (!cats[p.category]) cats[p.category] = [];
+      cats[p.category].push(p);
+    });
+    
+    return cats;
+  }, [dbProcedures]);
   
   const { addToast } = useToast();
 
@@ -59,15 +97,16 @@ export default function Agenda({ forceNewAppointment, onAppointmentHandled }: { 
     const unsubPatients = subscribeToCollection<any>(globalPatientsList.length > 0 ? 'patients' : 'patients', (data) => {
       setPatients(data);
     });
+    const unsubProcs = subscribeToCollection<Procedure>(proceduresCollection, (data) => {
+      setDbProcedures(data);
+    });
     return () => {
       unsubAppts();
       unsubStaff();
       unsubPatients();
+      unsubProcs();
     };
   }, []);
-
-  const [appointmentDate, setAppointmentDate] = useState('');
-  const [appointmentStatus, setAppointmentStatus] = useState('ongoing');
 
   useEffect(() => {
     if (editingAppointment) {
@@ -77,6 +116,21 @@ export default function Agenda({ forceNewAppointment, onAppointmentHandled }: { 
       
       if (patient) setSelectedPatientItem(patient);
       
+      if (editingAppointment.procedures && editingAppointment.procedures.length > 0) {
+        setSelectedProcedures(editingAppointment.procedures);
+      } else if (editingAppointment.treatmentType) {
+        const [cat, ...procParts] = editingAppointment.treatmentType.split(': ');
+        setSelectedProcedures([{
+          id: String(Date.now()),
+          category: cat || '',
+          name: procParts.join(': ') || '',
+          baseValue: editingAppointment.procedureValue || 0,
+          appliedValue: editingAppointment.procedureValue || 0
+        }]);
+      } else {
+        setSelectedProcedures([]);
+      }
+      
       // Parse category and procedure from treatmentType
       const [cat, ...procParts] = editingAppointment.treatmentType.split(': ');
       setSelectedCategory(cat || '');
@@ -85,10 +139,23 @@ export default function Agenda({ forceNewAppointment, onAppointmentHandled }: { 
       setAppointmentDate(format(new Date(editingAppointment.date), "yyyy-MM-dd'T'HH:mm"));
       setAppointmentStatus(editingAppointment.status);
       setSelectedDentistId(editingAppointment.dentistId);
+      if (editingAppointment.payments && editingAppointment.payments.length > 0) {
+        setPayments(editingAppointment.payments);
+      } else {
+        setPayments([{ 
+          method: editingAppointment.paymentMethod || '', 
+          customMethod: editingAppointment.customPaymentMethod || '', 
+          amount: editingAppointment.procedureValue || '' 
+        }]);
+      }
+      setProcedureValue(editingAppointment.procedureValue !== undefined ? editingAppointment.procedureValue : '');
     } else {
       setAppointmentDate('');
       setAppointmentStatus('ongoing');
       setSelectedDentistId('');
+      setPayments([{ method: '', customMethod: '', amount: '' }]);
+      setProcedureValue('');
+      setSelectedProcedures([]);
     }
   }, [editingAppointment, patients]);
 
@@ -153,7 +220,9 @@ export default function Agenda({ forceNewAppointment, onAppointmentHandled }: { 
         <div className="flex flex-wrap items-center gap-3">
           <button 
             onClick={() => {
-              setDate(new Date());
+              const now = new Date();
+              setDate(now);
+              setActiveStartDate(now);
               addToast('Voltando para hoje', 'info');
             }}
             className="bg-white border border-slate-200 text-slate-600 px-4 py-3 rounded-xl flex items-center justify-center gap-2 font-bold transition-all hover:bg-slate-50 hover:border-slate-300 text-sm shadow-sm"
@@ -181,7 +250,36 @@ export default function Agenda({ forceNewAppointment, onAppointmentHandled }: { 
       { (isBooking || editingAppointment) ? (
         <div className="medical-card p-8 animate-in fade-in duration-500 max-w-2xl mx-auto">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold">{editingAppointment ? 'Editar Consulta' : 'Nova Consulta'}</h2>
+            <div className="flex items-center gap-4">
+              <h2 className="text-2xl font-bold">{editingAppointment ? 'Consulta' : 'Nova Consulta'}</h2>
+              {editingAppointment && selectedPatientItem && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const phone = selectedPatientItem.phone?.replace(/\D/g, '') || '';
+                    if (!phone) {
+                      addToast('Paciente sem número cadastrado.', 'error');
+                      return;
+                    }
+                    const dateObj = new Date(appointmentDate || editingAppointment.date);
+                    const formattedDate = dateObj.toLocaleDateString('pt-BR');
+                    const formattedTime = dateObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                    
+                    const dentist = staffList.find(d => d.id === selectedDentistId);
+                    const dentistName = dentist?.name || 'Doutor(a)';
+
+                    const procsNames = selectedProcedures.length > 0 ? selectedProcedures.map(p => p.name).join(', ') : (selectedProcedure || 'Consulta');
+                    const text = `Olá, ${selectedPatientItem.name}! Tudo bem?\nGostaríamos de confirmar a sua consulta:\n\n*Procedimento:* ${procsNames}\n*Doutor(a):* ${dentistName}\n*Data:* ${formattedDate}\n*Horário:* ${formattedTime}\n\nQualquer dúvida, estamos à disposição!`;
+
+                    window.open(`https://wa.me/55${phone}?text=${encodeURIComponent(text)}`, '_blank');
+                  }}
+                  className="bg-[#25D366] hover:bg-[#128C7E] text-white p-2 rounded-lg transition-colors flex items-center justify-center shadow-sm"
+                  title="Enviar mensagem via WhatsApp"
+                >
+                  <WhatsappIcon className="w-5 h-5" />
+                </button>
+              )}
+            </div>
             <div className="flex items-center gap-2">
               <div className="min-w-[200px]">
                 <Select 
@@ -281,6 +379,29 @@ export default function Agenda({ forceNewAppointment, onAppointmentHandled }: { 
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Select 
+                label="Doutor Responsável"
+                value={selectedDentistId}
+                onChange={(e) => setSelectedDentistId(e.target.value)}
+              >
+                <option value="">Selecione o profissional</option>
+                {staffList.map(dentist => (
+                  <option key={dentist.id} value={dentist.id}>{dentist.name}</option>
+                ))}
+              </Select>
+
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1 mb-1.5 block">Data e Hora</label>
+                <input 
+                  type="datetime-local" 
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all hover:bg-white hover:border-slate-300 shadow-sm" 
+                  value={appointmentDate}
+                  onChange={(e) => setAppointmentDate(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Select 
                 label="Tipo de Atendimento"
                 value={selectedCategory}
                 onChange={(e) => {
@@ -299,41 +420,169 @@ export default function Agenda({ forceNewAppointment, onAppointmentHandled }: { 
                   <Select 
                     label="Procedimento"
                     value={selectedProcedure}
-                    onChange={(e) => setSelectedProcedure(e.target.value)}
+                    onChange={(e) => {
+                      const procedureName = e.target.value;
+                      setSelectedProcedure(''); // reset selection
+                      const proc = treatmentCategories[selectedCategory]?.find(p => p.name === procedureName);
+                      if (proc) {
+                        setSelectedProcedures(prev => [...prev, {
+                          id: String(Date.now()),
+                          category: selectedCategory,
+                          name: proc.name,
+                          baseValue: proc.value,
+                          appliedValue: proc.value
+                        }]);
+                      }
+                    }}
                   >
                     <option value="">Selecione o procedimento</option>
-                    {selectedCategory && (treatmentCategories as any)[selectedCategory] && (
-                      (treatmentCategories as any)[selectedCategory].map((proc: string) => (
-                        <option key={proc} value={proc}>{proc}</option>
-                      ))
-                    )}
+                    {treatmentCategories[selectedCategory]?.map((proc) => (
+                      <option key={proc.id} value={proc.name}>{proc.name}</option>
+                    ))}
                   </Select>
                 </div>
               )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Select 
-                label="Doutor Responsável"
-                value={selectedDentistId}
-                onChange={(e) => setSelectedDentistId(e.target.value)}
-              >
-                <option value="">Selecione o profissional</option>
-                {staffList.map(dentist => (
-                  <option key={dentist.id} value={dentist.id}>{dentist.name}</option>
-                ))}
-              </Select>
-            </div>
+            {selectedProcedures.length > 0 && (
+              <div className="space-y-3 animate-in slide-in-from-top-2 duration-300">
+                {selectedProcedures.map((proc, idx) => {
+                  const val = typeof proc.appliedValue === 'number' ? proc.appliedValue : 0;
+                  const discount = proc.baseValue > 0 ? ((proc.baseValue - val) / proc.baseValue) * 100 : 0;
+                  const isAbove = val > proc.baseValue;
+                  const isBelow = val < proc.baseValue;
 
-            <div>
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1 mb-1.5 block">Data e Hora</label>
-              <input 
-                type="datetime-local" 
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-gold-500/20 transition-all hover:bg-white hover:border-slate-300 shadow-sm" 
-                value={appointmentDate}
-                onChange={(e) => setAppointmentDate(e.target.value)}
-              />
-            </div>
+                  return (
+                    <div key={proc.id} className="bg-white p-4 rounded-xl border border-slate-200 flex items-center justify-between gap-4 shadow-sm">
+                      <div className="flex-1">
+                        <p className="font-bold text-slate-800">{proc.name}</p>
+                        <p className="text-xs text-slate-500 font-medium">{proc.category} • Base: R$ {Number(proc.baseValue).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                        
+                        {isBelow && <p className="text-[10px] text-amber-600 font-bold uppercase tracking-widest mt-1.5">Desconto de {discount.toFixed(1)}% ({((proc.baseValue - val)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })})</p>}
+                        {isAbove && <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-widest mt-1.5">Acima da base (+ {(val - proc.baseValue).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })})</p>}
+                      </div>
+                      
+                      <div className="flex items-center gap-3">
+                        <button 
+                          onClick={() => setSelectedProcedures(prev => prev.filter(p => p.id !== proc.id))}
+                          className="text-rose-400 hover:text-rose-600 hover:bg-rose-50 p-1.5 rounded-lg transition-colors flex-shrink-0"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                        <div className="w-32 sm:w-40 relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-slate-400 text-sm">R$</span>
+                          <CurrencyInput
+                            className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-sm"
+                            value={proc.appliedValue === '' ? '' : Number(proc.appliedValue)}
+                            onChangeValue={newVal => {
+                              setSelectedProcedures(prev => prev.map(p => p.id === proc.id ? { ...p, appliedValue: newVal === '' ? 0 : Number(newVal) } : p));
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                
+                <div className="p-4 rounded-xl bg-slate-100 border border-slate-200 flex flex-col gap-4">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex-1 space-y-4">
+                      {payments.map((payment, idx) => (
+                        <div key={idx} className="flex flex-col md:flex-row gap-3 items-start md:items-end">
+                          <div className="flex-1 w-full">
+                            <Select 
+                              label={`Pagamento ${idx + 1}`}
+                              value={payment.method}
+                              onChange={(e) => {
+                                const newMethod = e.target.value as any;
+                                if (newMethod !== '' && payments.some((p, i) => i !== idx && p.method === newMethod)) {
+                                  addToast('Esta forma de pagamento já foi inserida.', 'error');
+                                  return;
+                                }
+                                const newPayments = [...payments];
+                                newPayments[idx].method = newMethod;
+                                setPayments(newPayments);
+                              }}
+                            >
+                              <option value="">Selecione a forma</option>
+                              <option value="PIX">PIX</option>
+                              <option value="Crédito">Crédito</option>
+                              <option value="Débito">Débito</option>
+                              <option value="Outros">Outros</option>
+                            </Select>
+                            
+                            {payment.method === 'Outros' && (
+                              <div className="mt-3 animate-in fade-in zoom-in-95 duration-200">
+                                <input 
+                                  type="text" 
+                                  placeholder="Especifique a forma..."
+                                  className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-sm"
+                                  value={payment.customMethod}
+                                  onChange={e => {
+                                    const newPayments = [...payments];
+                                    newPayments[idx].customMethod = e.target.value;
+                                    setPayments(newPayments);
+                                  }}
+                                />
+                              </div>
+                            )}
+                          </div>
+                          
+                          <div className="w-full md:w-32 relative">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1 mb-1.5 block">Valor (R$)</label>
+                            <span className="absolute left-3 top-[34px] font-bold text-slate-400 text-sm">R$</span>
+                            <CurrencyInput
+                              className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-sm"
+                              value={payment.amount === '' ? '' : Number(payment.amount)}
+                              onChangeValue={newVal => {
+                                const newPayments = [...payments];
+                                newPayments[idx].amount = newVal === '' ? '' : Number(newVal);
+                                setPayments(newPayments);
+                              }}
+                            />
+                          </div>
+                          
+                          {payments.length > 1 && (
+                            <button 
+                              onClick={() => setPayments(prev => prev.filter((_, i) => i !== idx))}
+                              className="text-rose-400 hover:text-rose-600 hover:bg-rose-50 p-2 rounded-lg transition-colors flex-shrink-0 mb-[2px]"
+                            >
+                              <X className="w-5 h-5" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      
+                      {payments.length < 2 && (
+                        <button 
+                          onClick={() => setPayments(prev => [...prev, { method: '', customMethod: '', amount: '' }])}
+                          className="text-sm font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1.5"
+                        >
+                          <Plus className="w-4 h-4" /> Adicionar Forma de Pagamento
+                        </button>
+                      )}
+                    </div>
+                    
+                    <div className="text-right border-t md:border-t-0 md:border-l border-slate-200 pt-4 md:pt-0 md:pl-6 min-w-[140px]">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Valor Total</p>
+                      <p className="text-2xl font-bold font-display text-slate-900">
+                        R$ {selectedProcedures.reduce((acc, p) => acc + (p.appliedValue || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </p>
+                      {(() => {
+                        const totalBase = selectedProcedures.reduce((acc, p) => acc + p.baseValue, 0);
+                        const totalApplied = selectedProcedures.reduce((acc, p) => acc + (p.appliedValue || 0), 0);
+                        if (totalApplied < totalBase && totalBase > 0) {
+                          return <p className="text-[10px] uppercase font-bold text-amber-600 mt-1">Desconto Total: {(((totalBase - totalApplied) / totalBase) * 100).toFixed(1)}%</p>
+                        } else if (totalApplied > totalBase) {
+                          return <p className="text-[10px] uppercase font-bold text-emerald-600 mt-1">Acima (+{(totalApplied - totalBase).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })})</p>
+                        }
+                        return null;
+                      })()}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="flex gap-4 pt-4 border-t border-slate-100">
               <button 
@@ -343,8 +592,8 @@ export default function Agenda({ forceNewAppointment, onAppointmentHandled }: { 
                     return;
                   }
                   
-                  if (!selectedCategory || !selectedProcedure) {
-                    addToast('Selecione o Tipo de Atendimento e o Procedimento.', 'error');
+                  if (selectedProcedures.length === 0) {
+                    addToast('Adicione pelo menos um procedimento.', 'error');
                     return;
                   }
 
@@ -360,15 +609,38 @@ export default function Agenda({ forceNewAppointment, onAppointmentHandled }: { 
 
                   const selectedDentist = staffList.find(d => d.id === selectedDentistId);
 
+                  const totalApplied = selectedProcedures.reduce((acc, p) => acc + (p.appliedValue || 0), 0);
+                  const totalPayments = payments.reduce((acc, p) => acc + (p.amount !== '' ? Number(p.amount) : 0), 0);
+
+                  if (Math.abs(totalPayments - totalApplied) > 0.01) {
+                    addToast(`O valor dos pagamentos (R$ ${totalPayments.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}) deve ser igual ao valor total da consulta (R$ ${totalApplied.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}).`, 'error');
+                    return;
+                  }
+
+                  const selectedMethods = payments.map(p => p.method).filter(m => m !== '');
+                  const uniqueMethods = new Set(selectedMethods);
+                  if (selectedMethods.length !== uniqueMethods.size) {
+                    addToast('Não é permitido inserir formas de pagamento repetidas.', 'error');
+                    return;
+                  }
+
+                  const proceduresStr = selectedProcedures.map(p => p.name).join(', ');
+
                   const appointmentData: any = {
                     patientId: selectedPatientItem.id,
                     patientName: selectedPatientItem.name,
                     dentistId: selectedDentistId,
-                    dentistName: selectedDentist?.name || 'Dr. Roberto Santos',
+                    dentistName: selectedDentist?.name || 'Doutor(a)',
                     date: new Date(appointmentDate).toISOString(),
                     duration: 60,
                     status: appointmentStatus,
-                    treatmentType: `${selectedCategory}: ${selectedProcedure}`
+                    treatmentType: proceduresStr, // Summary for backward compatibility
+                    procedureName: proceduresStr, // Summary
+                    procedureValue: totalApplied, // Total value
+                    procedures: selectedProcedures, // The actual array
+                    payments: payments.filter(p => p.method !== ''),
+                    paymentMethod: payments[0]?.method || '', // Backwards compatibility
+                    customPaymentMethod: payments[0]?.method === 'Outros' ? payments[0].customMethod : '' // Backwards compatibility
                   };
 
                   try {
@@ -386,6 +658,8 @@ export default function Agenda({ forceNewAppointment, onAppointmentHandled }: { 
                     setSelectedCategory('');
                     setSelectedProcedure('');
                     setSelectedDentistId('');
+                    setPayments([{ method: '', customMethod: '', amount: '' }]);
+                    setProcedureValue('');
                   } catch (error) {
                     addToast('Erro ao salvar consulta.', 'error');
                   }
@@ -403,11 +677,21 @@ export default function Agenda({ forceNewAppointment, onAppointmentHandled }: { 
                   setSelectedCategory('');
                   setSelectedProcedure('');
                   setSelectedDentistId('');
+                  setPayments([{ method: '', customMethod: '', amount: '' }]);
+                  setProcedureValue('');
                 }} 
                 className="px-6 py-3 rounded-xl font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
               >
                 Cancelar
               </button>
+              {editingAppointment && (
+                <button 
+                  onClick={() => setShowDeleteModal(true)}
+                  className="px-6 py-3 rounded-xl font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 transition-colors"
+                >
+                  Excluir
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -419,6 +703,8 @@ export default function Agenda({ forceNewAppointment, onAppointmentHandled }: { 
             <Calendar 
               onChange={(d: any) => setDate(d)} 
               value={date}
+              activeStartDate={activeStartDate}
+              onActiveStartDateChange={({ activeStartDate }: any) => setActiveStartDate(activeStartDate)}
               locale="pt-BR"
               className="border-none w-full font-sans custom-calendar"
               tileClassName={({ date, view }: any) => {
@@ -624,6 +910,54 @@ export default function Agenda({ forceNewAppointment, onAppointmentHandled }: { 
           color: var(--slate-500);
         }
       `}</style>
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="bg-rose-100 p-2.5 rounded-full text-rose-500 shrink-0">
+                <AlertCircle className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-slate-900">Excluir Consulta</h3>
+                <p className="text-sm text-slate-500 mt-1">Tem certeza que deseja excluir esta consulta? Esta ação não pode ser desfeita.</p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+              <button 
+                onClick={() => setShowDeleteModal(false)}
+                className="px-5 py-2.5 rounded-xl font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={async () => {
+                  if (editingAppointment) {
+                    try {
+                      await deleteDoc(appointmentsCollection, editingAppointment.id);
+                      addToast('Consulta excluída!', 'success');
+                      setShowDeleteModal(false);
+                      setIsBooking(false);
+                      setEditingAppointment(null);
+                      setSelectedPatientItem(null);
+                      setPatientSearch('');
+                      setSelectedCategory('');
+                      setSelectedProcedure('');
+                      setSelectedDentistId('');
+                      setPayments([{ method: '', customMethod: '', amount: '' }]);
+                      setProcedureValue('');
+                    } catch (error) {
+                      addToast('Erro ao excluir consulta.', 'error');
+                    }
+                  }
+                }}
+                className="px-5 py-2.5 rounded-xl font-bold text-white bg-rose-500 hover:bg-rose-600 transition-colors shadow-lg shadow-rose-100"
+              >
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,20 +1,59 @@
-import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getDatabase } from "firebase/database";
-import { getFirestore } from "firebase/firestore";
+export const auth: any = { currentUser: null };
 
-const firebaseConfig = {
-  apiKey: "AIzaSyCboAXvvtfr6EcdfpmIcZo4qsNNGzK_-2o",
-  authDomain: "fallon-project.firebaseapp.com",
-  databaseURL: "https://fallon-project-default-rtdb.firebaseio.com",
-  projectId: "fallon-project",
-  storageBucket: "fallon-project.firebasestorage.app",
-  messagingSenderId: "779367152908",
-  appId: "1:779367152908:web:0bd55518d817db4be2dd29",
-  measurementId: "G-56QYVPWWLZ"
+export const initAuth = () => {
+  const user = localStorage.getItem('currentUser');
+  if (user) {
+    auth.currentUser = JSON.parse(user);
+  } else {
+    auth.currentUser = null;
+  }
 };
 
-const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const db = getDatabase(app);
-export const firestore = getFirestore(app);
+initAuth();
+
+export const onAuthStateChanged = (authObj: any, callback: (user: any) => void) => {
+  const checkAuth = () => {
+    const user = localStorage.getItem('currentUser');
+    callback(user ? JSON.parse(user) : null);
+  };
+  checkAuth();
+  
+  // Custom event listener for local login/logout
+  window.addEventListener('auth-change', checkAuth);
+  
+  return () => {
+    window.removeEventListener('auth-change', checkAuth);
+  };
+};
+
+export const signInWithEmailAndPassword = async (authObj: any, email: string, pass: string) => {
+  const user = { uid: email, email };
+  localStorage.setItem('currentUser', JSON.stringify(user));
+  auth.currentUser = user;
+  window.dispatchEvent(new Event('auth-change'));
+  return { user };
+};
+
+export const createUserWithEmailAndPassword = async (authObj: any, email: string, pass: string) => {
+  const user = { uid: email, email };
+  localStorage.setItem('currentUser', JSON.stringify(user));
+  auth.currentUser = user;
+  window.dispatchEvent(new Event('auth-change'));
+  return { user };
+};
+
+export const sendPasswordResetEmail = async (authObj: any, email: string) => {
+  console.log('Password reset requested for', email);
+};
+
+export const signOut = async (authObj: any) => {
+  localStorage.removeItem('currentUser');
+  auth.currentUser = null;
+  window.dispatchEvent(new Event('auth-change'));
+};
+
+export const db: any = {};
+export const firestore: any = {};
+
+export const doc = () => {};
+export const getDocFromServer = async () => null;

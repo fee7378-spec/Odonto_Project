@@ -26,7 +26,7 @@ const formatCPF = (val: string) => {
   return v.substring(0, 14);
 };
 
-export default function Patients() {
+export default function Patients({ onNewAppointment }: { onNewAppointment?: (patient: any) => void }) {
   const { hasPermission } = usePermissions();
   const canEdit = hasPermission('pacientes', 'edit');
   
@@ -329,7 +329,13 @@ export default function Patients() {
               </button>
             )}
             <button 
-              onClick={() => addToast('Iniciando novo fluxo de agendamento...', 'success')}
+              onClick={() => {
+                if (onNewAppointment) {
+                  onNewAppointment(selectedPatient);
+                } else {
+                  addToast('Função indisponível', 'error');
+                }
+              }}
               className="bg-gold-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-gold-700 transition-colors shadow-lg shadow-gold-100"
             >
               Novo Agendamento

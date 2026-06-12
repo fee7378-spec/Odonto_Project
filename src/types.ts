@@ -40,6 +40,14 @@ export interface Patient {
   history: string[];
 }
 
+export interface AppointmentProcedure {
+  id: string;
+  category: string;
+  name: string;
+  baseValue: number;
+  appliedValue: number;
+}
+
 export interface Appointment {
   id: string;
   patientId: string;
@@ -48,10 +56,24 @@ export interface Appointment {
   dentistName?: string;
   date: string; // ISO string
   duration: number; // minutes
-  status: 'scheduled' | 'confirmed' | 'ongoing' | 'finished' | 'cancelled';
-  treatmentType: string;
+  status: 'scheduled' | 'confirmed' | 'ongoing' | 'finished' | 'cancelled' | 'no_show' | 'evaluation';
+  treatmentType: string; // Will store the procedure name
+  procedures?: AppointmentProcedure[]; // Added multiple procedures
   notes?: string;
+  paymentMethod?: 'PIX' | 'Crédito' | 'Débito' | 'Outros';
+  customPaymentMethod?: string;
+  payments?: { method: 'PIX' | 'Crédito' | 'Débito' | 'Outros'; customMethod?: string; amount: number }[];
+  procedureValue?: number;
+  procedureName?: string;
 }
+
+export interface Procedure {
+  id: string;
+  name: string;
+  category: string;
+  value: number;
+}
+
 
 export interface Dentist {
   id: string;

@@ -25,7 +25,8 @@ import {
   CircleDollarSign,
   Stethoscope,
   Settings,
-  MoreVertical
+  MoreVertical,
+  ClipboardList
 } from 'lucide-react';
 import { useToast } from '../ui/Toast';
 import Select from '../ui/Select';
@@ -38,16 +39,20 @@ import {
   profilesCollection, 
   usersCollection 
 } from '../../services/firebaseService';
+import { sendPasswordResetEmail } from '../../lib/firebase';
 import { AccessProfile, SystemUser, PermissionLevel } from '../../types';
 import { cn } from '../../lib/utils';
 import { usePermissions } from '../../hooks/usePermissions';
+import ConfirmDialog from '../ui/ConfirmDialog';
 
 const APP_MODULES = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'agenda', label: 'Agenda', icon: Calendar },
+  { id: 'consultas', label: 'Consultas', icon: ClipboardList },
   { id: 'pacientes', label: 'Pacientes', icon: Users },
   { id: 'financeiro', label: 'Financeiro', icon: CircleDollarSign },
   { id: 'dentistas', label: 'Equipe', icon: Stethoscope },
+  { id: 'miscellaneous', label: 'Miscelâneos', icon: Layout },
   { id: 'configuracoes', label: 'Configurações', icon: Settings },
   { id: 'perfisAcesso', label: 'Perfis de Acesso', icon: Shield },
 ];
@@ -73,6 +78,8 @@ export default function PerfisAcesso() {
   const [showResetModal, setShowResetModal] = useState(false);
   const [showNewUserModal, setShowNewUserModal] = useState(false);
   const [showNewTemplateModal, setShowNewTemplateModal] = useState(false);
+  
+  const [itemToDelete, setItemToDelete] = useState<{ id: string, type: 'user' | 'template' } | null>(null);
 
   useEffect(() => {
     const unsubProfiles = subscribeToCollection<AccessProfile>(profilesCollection, (data) => {
@@ -131,11 +138,35 @@ export default function PerfisAcesso() {
     // before resetting targeted user's status to pending.
     if (!selectedUser) return;
     try {
-      await updateDoc(usersCollection, selectedUser.id, { status: 'pending' });
-      addToast('Senha resetada com sucesso!', 'success');
+      await sendPasswordResetEmail(auth, selectedUser.email);
+      addToast('E-mail de redefinição de senha enviado!', 'success');
       setShowResetModal(false);
+    } catch (error: any) {
+      addToast('Erro ao enviar e-mail de redefinição.', 'error');
+    }
+  };
+
+  const handleDeleteUser = async (id: string) => {
+    try {
+      await deleteDoc(usersCollection, id);
+      addToast('Usuário excluído com sucesso!', 'success');
     } catch (error) {
-      addToast('Erro ao resetar senha.', 'error');
+      addToast('Erro ao excluir usuário.', 'error');
+    }
+  };
+
+  const handleDeleteTemplate = async (id: string) => {
+    try {
+      console.log('Deleting template with id:', id);
+      if (!id) {
+        addToast('Erro: ID do template é inválido.', 'error');
+        return;
+      }
+      await deleteDoc(profilesCollection, id);
+      addToast('Template excluído com sucesso!', 'success');
+    } catch (error: any) {
+      console.error('Delete template error:', error);
+      addToast('Erro ao excluir template: ' + (error.message || 'Erro desconhecido'), 'error');
     }
   };
 
@@ -216,14 +247,14 @@ export default function PerfisAcesso() {
           setSearchQuery={setSearchQuery} 
           onEdit={handleEditUser}
           profiles={profiles}
-          onDelete={(id) => deleteDoc(usersCollection, id)}
+          onDelete={(id: string) => setItemToDelete({ id, type: 'user' })}
           canEdit={canEdit}
         />
       ) : (
         <TemplatesList 
           templates={profiles} 
           onEdit={handleEditTemplate}
-          onDelete={(id) => deleteDoc(profilesCollection, id)}
+          onDelete={(id: string) => setItemToDelete({ id, type: 'template' })}
           canEdit={canEdit}
         />
       )}
@@ -234,6 +265,26 @@ export default function PerfisAcesso() {
           onConfirm={handleResetPassword}
         />
       )}
+
+      <ConfirmDialog
+        isOpen={itemToDelete !== null}
+        title={itemToDelete?.type === 'user' ? 'Excluir Usuário' : 'Excluir Template'}
+        message={
+          itemToDelete?.type === 'user' 
+            ? 'Tem certeza que deseja excluir este usuário? Esta ação não pode ser desfeita.'
+            : 'Tem certeza que deseja excluir este template? Usuários com o mesmo ainda manterão as permissões locais, mas perderão a referência.'
+        }
+        confirmText="Excluir"
+        type="danger"
+        onCancel={() => setItemToDelete(null)}
+        onConfirm={() => {
+          if (itemToDelete?.type === 'user') {
+            handleDeleteUser(itemToDelete.id);
+          } else if (itemToDelete?.type === 'template') {
+            handleDeleteTemplate(itemToDelete.id);
+          }
+        }}
+      />
 
       {/* Basic Modals for creation could be added here or implemented as detailed views */}
       {showNewUserModal && (
@@ -332,7 +383,7 @@ function UsuariosList({ users, searchQuery, setSearchQuery, onEdit, profiles, on
                       </button>
                       {canEdit && (
                         <button 
-                          onClick={() => { if(confirm('Excluir usuário?')) onDelete(user.id); }}
+                          onClick={() => onDelete(user.id)}
                           className="p-2 text-slate-300 hover:text-rose-500 transition-colors"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -374,7 +425,7 @@ function TemplatesList({ templates, onEdit, onDelete, canEdit }: any) {
                     {canEdit ? <Edit2 className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                   </button>
                   {canEdit && (
-                    <button onClick={() => { if(confirm('Excluir template?')) onDelete(template.id); }} className="p-2 bg-slate-50 text-rose-500 rounded-lg hover:bg-rose-50 transition-all">
+                    <button onClick={() => onDelete(template.id)} className="p-2 bg-slate-50 text-rose-500 rounded-lg hover:bg-rose-50 transition-all">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   )}
@@ -659,7 +710,7 @@ function NewUserModal({ profiles, onClose, onCreated }: any) {
               placeholder="exemplo@email.com" 
               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-slate-700 font-bold focus:outline-none focus:ring-2 focus:ring-gold-500/20" 
               value={formData.email} 
-              onChange={e => setFormData({...formData, email: e.target.value})} 
+              onChange={e => setFormData({...formData, email: e.target.value.trim().toLowerCase()})} 
             />
           </div>
           <div className="space-y-1.5">

@@ -5,6 +5,7 @@ import Select from '../ui/Select';
 import { subscribeToCollection, createDoc, updateDoc, deleteDoc, dentistsCollection } from '../../services/firebaseService';
 import { Dentist } from '../../types';
 import { usePermissions } from '../../hooks/usePermissions';
+import ConfirmDialog from '../ui/ConfirmDialog';
 
 export default function Staff() {
   const { addToast } = useToast();
@@ -15,6 +16,7 @@ export default function Staff() {
   const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
   const [editingStaffId, setEditingStaffId] = useState<string | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -84,13 +86,11 @@ export default function Staff() {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm('Deseja excluir este profissional?')) {
-      try {
-        await deleteDoc(dentistsCollection, id);
-        addToast('Profissional excluído.', 'success');
-      } catch (error) {
-        addToast('Erro ao excluir.', 'error');
-      }
+    try {
+      await deleteDoc(dentistsCollection, id);
+      addToast('Profissional excluído.', 'success');
+    } catch (error) {
+      addToast('Erro ao excluir.', 'error');
     }
   };
 
@@ -130,50 +130,20 @@ export default function Staff() {
                     <h3 className="text-lg font-bold text-slate-900">{dentist.name}</h3>
                     <p className="text-sm font-medium text-gold-600">{dentist.specialty}</p>
                   </div>
-                  {canEdit && (
-                    <div className="flex gap-2">
-                       <button 
-                        onClick={() => handleEdit(dentist)}
-                        className="p-1 px-2 text-xs font-bold text-gold-600 hover:bg-gold-50 rounded"
-                      >
-                        Editar
-                      </button>
-                      <button 
-                        onClick={() => handleDelete(dentist.id)}
-                        className="p-1 px-2 text-xs font-bold text-rose-600 hover:bg-rose-50 rounded"
-                      >
-                        Excluir
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                <div className="mt-6">
-                  <div className="bg-slate-50 p-4 rounded-xl flex items-center justify-between">
-                    <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status do Perfil</p>
-                      <p className="text-sm font-bold text-emerald-600">Ativo no Sistema</p>
-                    </div>
-                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  </div>
                 </div>
 
                 <div className="mt-6 space-y-3">
                   <div className="flex items-center gap-3 text-sm text-slate-500">
                     <Shield className="w-4 h-4" />
-                    <span>Perfil: Dentista</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-sm text-slate-500">
-                    <Clock className="w-4 h-4" />
-                    <span>Carga Horária: 40h/semana</span>
+                    <span>Especialidade: {dentist.specialty}</span>
                   </div>
                 </div>
 
                 <button 
-                  onClick={() => addToast(`Exibindo a escala semanal de ${dentist.name}`, 'info')}
+                  onClick={() => handleEdit(dentist)}
                   className="w-full mt-6 py-2.5 bg-slate-50 text-slate-600 hover:bg-gold-50 hover:text-gold-600 rounded-xl font-bold text-sm transition-all"
                 >
-                  Ver Escala de Horários
+                  Visualizar Colaborador
                 </button>
               </div>
             </div>
@@ -255,6 +225,16 @@ export default function Staff() {
               </div>
 
               <div className="pt-4 flex gap-3">
+                {editingStaffId && canEdit && (
+                  <button 
+                    type="button"
+                    onClick={() => { setItemToDelete(editingStaffId); setIsAdding(false); setEditingStaffId(null); }}
+                    className="flex-none px-4 py-3.5 bg-rose-50 text-rose-600 rounded-xl font-bold hover:bg-rose-100 transition-colors"
+                    title="Excluir Colaborador"
+                  >
+                    Excluir
+                  </button>
+                )}
                 <button 
                   type="button"
                   onClick={() => { setIsAdding(false); setEditingStaffId(null); }}
@@ -273,6 +253,18 @@ export default function Staff() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={itemToDelete !== null}
+        title="Excluir Profissional"
+        message="Tem certeza que deseja excluir este profissional? Esta ação não pode ser desfeita."
+        confirmText="Excluir"
+        type="danger"
+        onCancel={() => setItemToDelete(null)}
+        onConfirm={() => {
+          if (itemToDelete) handleDelete(itemToDelete);
+        }}
+      />
     </>
   );
 }

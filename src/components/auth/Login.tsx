@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Mail, Lock, LogIn, ChevronRight, UserPlus, ArrowLeft, Key } from 'lucide-react';
 import { useToast } from '../ui/Toast';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail } from '../../lib/firebase';
 import { auth } from '../../lib/firebase';
 import { checkUserByEmail, updateDoc, usersCollection } from '../../services/firebaseService';
 import Logo from '../ui/Logo';
@@ -51,6 +51,16 @@ export default function Login({ onLogin }: { onLogin: () => void }) {
     }
   };
 
+  const handleForgotPassword = async () => {
+    if (!email) return;
+    try {
+      await sendPasswordResetEmail(auth, email);
+      addToast('E-mail de recuperação de senha enviado!', 'success');
+    } catch (error: any) {
+      addToast('Erro ao enviar e-mail de recuperação.', 'error');
+    }
+  };
+
   const handleFinalAction = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -78,6 +88,7 @@ export default function Login({ onLogin }: { onLogin: () => void }) {
         // Update user status in Firestore
         await updateDoc(usersCollection, userData.id, { status: 'active' });
         addToast('Senha configurada com sucesso! Bem-vindo.', 'success');
+        onLogin();
       } else {
         // Regular login
         try {
@@ -146,13 +157,14 @@ export default function Login({ onLogin }: { onLogin: () => void }) {
       if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
         addToast('Credenciais inválidas. Verifique seu e-mail e senha e tente novamente.', 'error');
       } else if (error.code === 'auth/email-already-in-use') {
-        // This could happen if the user was created in Auth but status was still pending
-        // Try to sign in instead
-        try {
-          await signInWithEmailAndPassword(auth, email, password);
+        if (userData.status === 'pending') {
           await updateDoc(usersCollection, userData.id, { status: 'active' });
-          onLogin();
-        } catch {
+          setUserData({ ...userData, status: 'active' });
+          addToast('Sua conta já existe! Por favor, digite sua senha existente.', 'success');
+          // Clear current typed password as it was likely a "new" password attempt that failed
+          setPassword('');
+          setConfirmPassword('');
+        } else {
           addToast('Este e-mail já possui uma conta configurada.', 'error');
         }
       } else {
@@ -190,7 +202,7 @@ export default function Login({ onLogin }: { onLogin: () => void }) {
                     type="email"
                     required
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => setEmail(e.target.value.trim().toLowerCase())}
                     className="block w-full rounded-2xl border border-slate-200 py-3 pl-12 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:border-gold-500 focus:outline-none focus:ring-4 focus:ring-gold-500/10 transition-all"
                     placeholder="seu@email.com"
                   />
@@ -270,7 +282,7 @@ export default function Login({ onLogin }: { onLogin: () => void }) {
                   </div>
                 </div>
               ) : (
-                <div>
+                <div className="space-y-2">
                   <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">Digite sua Senha</label>
                   <div className="relative mt-1">
                     <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
@@ -285,6 +297,15 @@ export default function Login({ onLogin }: { onLogin: () => void }) {
                       className="block w-full rounded-2xl border border-slate-200 py-3 pl-12 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:border-gold-500 focus:outline-none focus:ring-4 focus:ring-gold-500/10 transition-all"
                       placeholder="••••••••"
                     />
+                  </div>
+                  <div className="flex justify-end pt-1">
+                    <button
+                      type="button"
+                      onClick={handleForgotPassword}
+                      className="text-[11px] font-bold text-gold-600 hover:text-gold-700 transition-colors tracking-wide"
+                    >
+                      Esqueceu sua senha?
+                    </button>
                   </div>
                 </div>
               )}

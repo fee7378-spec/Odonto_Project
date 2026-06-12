@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { auth } from '../lib/firebase';
+import { auth, onAuthStateChanged } from '../lib/firebase';
 import { subscribeToCollection, usersCollection, profilesCollection } from '../services/firebaseService';
 import { SystemUser, AccessProfile, PermissionLevel } from '../types';
 
@@ -11,7 +11,7 @@ export function usePermissions() {
   const MASTER_EMAIL = 'fee7378@gmail.com';
 
   useEffect(() => {
-    const unsubAuth = auth.onAuthStateChanged((authUser) => {
+    const unsubAuth = onAuthStateChanged(auth, (authUser: any) => {
       if (!authUser) {
         setUser(null);
         setProfile(null);
@@ -66,7 +66,14 @@ export function usePermissions() {
     const userPerm = user?.customPermissions?.[module];
     const profilePerm = profile?.permissions?.[module];
     
-    const effectivePerm = userPerm || profilePerm || 'none';
+    let effectivePerm = userPerm || profilePerm || 'none';
+    
+    // As per user request: for the 'miscellaneous' module, Admin templates always have 'edit', others default to 'none' if not explicitly configured.
+    if (module === 'miscellaneous' && (!userPerm && !profilePerm)) {
+      if (profile?.name?.toLowerCase().includes('admin')) {
+        effectivePerm = 'edit';
+      }
+    }
     
     if (level === 'edit') return effectivePerm === 'edit';
     if (level === 'view') return effectivePerm === 'view' || effectivePerm === 'edit';
