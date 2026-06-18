@@ -1,6 +1,5 @@
 {
-  "name": "Fallon Odontocare | System",
-  "description": "Sistema completo de gestão odontológica com dashboard analítico, prontuário eletrônico e odontograma interativo.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "name": "Analista Academy System",
+  "description": "A professional platform for monitoring and evaluating analysts in training with full traceability and performance reporting.",
+  "requestFramePermissions": []
 }

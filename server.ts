@@ -1,48 +1,15 @@
 import express from "express";
-import path from "path";
 import { createServer as createViteServer } from "vite";
-import { GoogleGenAI } from "@google/genai";
-import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
+import fs from "fs/promises";
 
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
-
-  app.use(express.json());
-
-  // Gemini Setup
-  const ai = new GoogleGenAI({
-    apiKey: process.env.GEMINI_API_KEY || "",
-    httpOptions: {
-      headers: {
-        'User-Agent': 'aistudio-build',
-      }
-    }
-  });
-
-  // API Routes
-  app.post("/api/ai/suggest-treatment", async (req, res) => {
-    try {
-      const { patientData } = req.body;
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: `Com base nos seguintes dados clínicos do paciente, sugira procedimentos odontológicos preventivos ou corretivos (limite a 3 sugestões): ${JSON.stringify(patientData)}`,
-        config: {
-          systemInstruction: "Você é um assistente odontológico experiente. Responda em português brasileiro de forma técnica porém acessível.",
-        }
-      });
-      res.json({ suggestion: response.text });
-    } catch (error) {
-      console.error("Gemini Error:", error);
-      res.status(500).json({ error: "Erro ao gerar sugestão" });
-    }
-  });
-
-  app.get("/api/health", (req, res) => {
-    res.json({ status: "ok" });
-  });
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
@@ -51,6 +18,18 @@ async function startServer() {
       appType: "spa",
     });
     app.use(vite.middlewares);
+
+    app.use('*', async (req, res, next) => {
+      try {
+        const url = req.originalUrl;
+        let template = await fs.readFile(path.resolve(__dirname, 'index.html'), 'utf-8');
+        template = await vite.transformIndexHtml(url, template);
+        res.status(200).set({ 'Content-Type': 'text/html' }).end(template);
+      } catch (e: any) {
+        vite.ssrFixStacktrace(e);
+        next(e);
+      }
+    });
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
