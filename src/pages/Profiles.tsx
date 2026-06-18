@@ -261,17 +261,16 @@ const TemplatesTab: React.FC<{ templates: ProfileTemplate[], setTemplates: React
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {templates.map(template => (
-          <div key={template.id} className="group relative bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-slate-200 dark:border-slate-800 hover:border-blue-500/50 dark:hover:border-blue-500/50 transition-all overflow-hidden flex flex-col">
-            <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-500 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-            <div className="flex justify-between items-start mb-6">
+          <div key={template.id} className="bg-white dark:bg-slate-800/50 rounded-2xl p-6 border border-slate-100 dark:border-slate-700/50">
+            <div className="flex justify-between items-start">
               <div>
-                <h3 className="font-bold text-xl text-slate-900 dark:text-white mb-1 tracking-tight">{template.name}</h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">{template.description}</p>
+                <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-1">{template.name}</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400">{template.description}</p>
               </div>
-              <div className="flex gap-2 ml-4 shrink-0">
+              <div className="flex gap-3 ml-4">
                 <button
                   onClick={() => setSelectedTemplate(template)}
-                  className="p-2 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-xl transition-all"
+                  className="text-blue-500 hover:text-blue-400 transition-colors"
                   title="Editar"
                 >
                   {canEdit ? <Pencil className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -279,7 +278,7 @@ const TemplatesTab: React.FC<{ templates: ProfileTemplate[], setTemplates: React
                 {canEdit && (
                   <button
                     onClick={() => handleDeleteTemplate(template)}
-                    className="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all"
+                    className="text-red-500 hover:text-red-400 transition-colors"
                     title="Excluir"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -287,23 +286,9 @@ const TemplatesTab: React.FC<{ templates: ProfileTemplate[], setTemplates: React
                 )}
               </div>
             </div>
-            
-            <div className="flex gap-4 border-t border-slate-100 dark:border-slate-800 pt-4 mt-auto">
-              <div className="flex-1">
-                <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Edição</p>
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                  <span className="text-sm font-bold text-slate-700 dark:text-slate-300">{Object.values(template.permissions).filter(p => p === 'edit').length} Módulos</span>
-                </div>
-              </div>
-              <div className="w-px bg-slate-100 dark:bg-slate-800"></div>
-              <div className="flex-1">
-                <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Visualização</p>
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                  <span className="text-sm font-bold text-slate-700 dark:text-slate-300">{Object.values(template.permissions).filter(p => p === 'view').length} Módulos</span>
-                </div>
-              </div>
+            <div className="mt-6 text-sm font-medium text-slate-600 dark:text-slate-300 space-y-1">
+              <p>Módulos com edição: {Object.values(template.permissions).filter(p => p === 'edit').length}</p>
+              <p>Módulos com visualização: {Object.values(template.permissions).filter(p => p === 'view').length}</p>
             </div>
           </div>
         ))}
@@ -605,9 +590,9 @@ export const Profiles: React.FC = () => {
   };
 
   const filteredUsers = users.filter(u => 
-    String(u.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
-    (u.email && String(u.email).toLowerCase().includes(searchTerm.toLowerCase())) ||
-    String(u.matricula || '').toLowerCase().includes(searchTerm.toLowerCase())
+    u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    (u.email && u.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    u.matricula.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   if (loading) {
@@ -723,7 +708,7 @@ export const Profiles: React.FC = () => {
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 bg-blue-50 dark:bg-blue-500/10 rounded-xl flex items-center justify-center text-blue-600 font-bold">
-                              {user.name && typeof user.name === 'string' ? user.name.charAt(0) : '?'}
+                              {user.name.charAt(0)}
                             </div>
                             <div>
                               <div className="text-sm font-bold text-slate-900 dark:text-white">{user.name}</div>
@@ -817,7 +802,7 @@ export const Profiles: React.FC = () => {
               <div className="p-8 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-6">
                 <div className="flex items-center gap-6">
                   <div className="w-20 h-20 bg-blue-50 dark:bg-blue-500/10 rounded-3xl flex items-center justify-center text-blue-600 text-2xl font-bold">
-                    {selectedUser.name && typeof selectedUser.name === 'string' ? selectedUser.name.charAt(0) : '?'}
+                    {selectedUser.name.charAt(0)}
                   </div>
                   <div className="flex-1">
                     <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{selectedUser.name}</h2>
